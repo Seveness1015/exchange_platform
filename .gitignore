@@ -7,6 +7,11 @@ yarn-error.log*
 firebase-debug.log*
 firebase-debug.*.log*
 
+# 忽略 __pycache__ 目錄
+__pycache__/
+*.pyc
+*.pyo
+
 # Firebase cache
 .firebase/
 
