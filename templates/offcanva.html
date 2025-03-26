@@ -1,0 +1,28 @@
+<!-- 浮動按鈕 -->
+<button class="btn floating-btn" type="button" id="toggleButton" data-bs-toggle="offcanvas" data-bs-target="#offcanvasLeft" aria-controls="offcanvasLeft">
+    <i class="fas fa-arrow-right"></i>
+</button>
+
+<!-- Offcanvas 左側顯示 -->
+<div class="offcanvas offcanvas-start d-flex flex-column justify-content-center" tabindex="-1" id="offcanvasLeft" aria-labelledby="offcanvasLeftLabel">
+  <div class="offcanvas-header">
+    <h5 id="offcanvasLeftLabel">帳號資訊</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body text-center">
+    <!-- 使用者頭貼  -->
+    <a href="/profile">
+      <img src="static/images/user_cat01.png" alt="User Avatar" class="profile-img">
+    </a>
+    <h6><a href="/profile" class="text-decoration-none text-dark">使用者名稱</a></h6>
+
+    <!-- 垂直置中選單 -->
+    <ul class="list-group mt-3 w-75 mx-auto">
+      <li class="list-group-item"><a href="/profile" class="text-decoration-none">個人資料</a></li>
+      <li class="list-group-item"><a href="/collects" class="text-decoration-none">我的收藏</a></li>
+      <li class="list-group-item"><a href="/message" class="text-decoration-none">聊天室</a></li>
+      <li class="list-group-item"><a href="/setting" class="text-decoration-none">設定</a></li>
+      <li class="list-group-item"><a href="/logout" class="text-decoration-none text-danger">登出</a></li>
+    </ul>
+  </div>
+</div>
