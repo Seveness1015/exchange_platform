@@ -121,6 +121,13 @@ def setting():
         return redirect("/login")  # 未登入則跳轉到登入頁
     return render_template("setting.html")  # 渲染設定頁面
 
+# 個人收藏
+@app.route("/collects", methods=["GET", "POST"])
+def collects():
+    if "user" not in session:
+        return redirect("/login")  # 未登入則跳轉到登入頁
+    return render_template("collects.html")  # 渲染個人收藏頁面
+
 # 傳送訊息
 # @app.route("/send_message", methods=["POST"])
 # def send_message():

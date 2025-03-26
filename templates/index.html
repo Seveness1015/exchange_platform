@@ -1,14 +1,6 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}二手書平台{% endblock %}</title>
-    <link href="/static/css/styles.css" rel="stylesheet">
-</head>
-<body>
-{% include 'navbar.html' %}
-{% include 'offcanva.html' %}
+{% extends 'base.html' %}
+  
+  {% block content %}
 <!-- 主體內容 -->
 <div class="container text-center mt-5">
     <h1>歡迎來到二手書平台</h1>
