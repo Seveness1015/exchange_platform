@@ -3,117 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>二手書平台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    <style>
-        /* 浮動按鈕樣式 */
-        .floating-btn {
-            position: fixed;
-            left: 0px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 1050;
-            background-color: #005BAA;
-            color: #fff;
-            border: none;
-            border-radius: 0% 50% 50% 0%;
-            padding: 15px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            font-size: 24px;
-            transition: left 0.3s ease-in-out, background-color 0.3s ease-in-out;
-        }
-
-        .floating-btn.hide-btn {
-            left: -50px;
-        }
-
-        .floating-btn:hover {
-            background-color: #0D315A;
-            cursor: pointer;
-        }
-
-        .floating-btn i {
-            color: #fff;
-        }
-
-        /* 圓形頭貼樣式 */
-        .profile-img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 10px;
-        }
-
-        .offcanvas-body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-        }
-
-    </style>
+    <title>{% block title %}二手書平台{% endblock %}</title>
+    <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 <body>
-
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="/">二手書平台</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item">
-          <a class="nav-link active" href="/">首頁</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">關於我們</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">聯絡我們</a>
-        </li>
-        <li class="nav-item">
-          <a class="btn btn-outline-light" href="/logout" role="button">登出</a>
-        </li>
-      </ul>
-    </div>
-  </div>
-</nav>
-
-<!-- 浮動按鈕 -->
-<button class="btn floating-btn" type="button" id="toggleButton" data-bs-toggle="offcanvas" data-bs-target="#offcanvasLeft" aria-controls="offcanvasLeft">
-    <i class="fas fa-arrow-right"></i>
-</button>
-
-<!-- Offcanvas 左側顯示 -->
-<div class="offcanvas offcanvas-start d-flex flex-column justify-content-center" tabindex="-1" id="offcanvasLeft" aria-labelledby="offcanvasLeftLabel">
-  <div class="offcanvas-header">
-    <h5 id="offcanvasLeftLabel">帳號資訊</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-  </div>
-  <div class="offcanvas-body text-center">
-    <!-- 使用者頭貼  -->
-    <a href="/profile">
-      <img src="./static/images/user_cat01.png" alt="User Avatar" class="profile-img">
-    </a>
-    <h6><a href="/profile" class="text-decoration-none text-dark">使用者名稱</a></h6>
-
-    <!-- 垂直置中選單 -->
-    <ul class="list-group mt-3 w-75 mx-auto">
-      <li class="list-group-item"><a href="/profile" class="text-decoration-none">個人資料</a></li>
-      <li class="list-group-item"><a href="#" class="text-decoration-none">我的收藏</a></li>
-      <li class="list-group-item"><a href="/message" class="text-decoration-none">聊天室</a></li>
-      <li class="list-group-item"><a href="/setting" class="text-decoration-none">設定</a></li>
-      <li class="list-group-item"><a href="/logout" class="text-decoration-none text-danger">登出</a></li>
-    </ul>
-  </div>
-</div>
-
-
+{% include 'navbar.html' %}
+{% include 'offcanva.html' %}
 <!-- 主體內容 -->
 <div class="container text-center mt-5">
     <h1>歡迎來到二手書平台</h1>
@@ -125,23 +20,9 @@
         <button class="btn btn-primary" type="button"><i class="fas fa-search"></i></button>
     </div>
 </div>
-
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-    // 監聽 Offcanvas 開啟與關閉事件
-    var offcanvasElement = document.getElementById('offcanvasLeft');
-    var toggleButton = document.getElementById('toggleButton');
-
-    offcanvasElement.addEventListener('show.bs.offcanvas', function () {
-        toggleButton.classList.add('hide-btn');
-    });
-
-    offcanvasElement.addEventListener('hidden.bs.offcanvas', function () {
-        toggleButton.classList.remove('hide-btn');
-    });
-</script>
-
+<script src="/static/js/scripts.js"></script>
+    
 </body>
 </html>
