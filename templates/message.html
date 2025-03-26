@@ -103,6 +103,7 @@
     <h6><a href="/profile" class="text-decoration-none text-dark">使用者名稱</a></h6>
 
     <!-- 垂直置中選單 -->
+    <!-- 垂直置中選單 -->
     <ul class="list-group mt-3 w-75 mx-auto">
       <li class="list-group-item"><a href="/profile" class="text-decoration-none">個人資料</a></li>
       <li class="list-group-item"><a href="#" class="text-decoration-none">我的收藏</a></li>
@@ -114,17 +115,60 @@
 </div>
 
 
-<!-- 主體內容 -->
-<div class="container text-center mt-5">
-    <h1>歡迎來到二手書平台</h1>
-    <p>在這裡你可以交換你不再需要的書籍。</p>
-
-    <!-- 🔍 搜尋欄 -->
-    <div class="input-group mt-4 w-50 mx-auto">
-        <input type="text" class="form-control" placeholder="搜尋書籍...">
-        <button class="btn btn-primary" type="button"><i class="fas fa-search"></i></button>
+<!-- Chatroom Page -->
+<div class="container mt-5">
+    <h1 class="text-center">聊天室</h1>
+    <div class="chat-box border rounded p-3 bg-light" id="chat-box" style="height: 400px; overflow-y: auto;"></div>
+    <div class="input-group mt-3">
+        <input type="text" class="form-control" id="message-input" placeholder="輸入訊息...">
+        <button class="btn btn-primary" id="send-button">發送</button>
     </div>
 </div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+<script>
+    // Firebase 設定
+    const firebaseConfig = {
+        apiKey: "你的API金鑰",
+        authDomain: "你的專案.firebaseapp.com",
+        projectId: "你的專案ID",
+        storageBucket: "你的專案.appspot.com",
+        messagingSenderId: "你的發送者ID",
+        appId: "你的應用ID"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const messagesRef = db.collection("messages");
+    
+    // 監聽聊天室訊息
+    messagesRef.orderBy("timestamp").onSnapshot(snapshot => {
+        const chatBox = document.getElementById("chat-box");
+        chatBox.innerHTML = "";
+        snapshot.forEach(doc => {
+            const message = doc.data();
+            chatBox.innerHTML += `<p><strong>${message.user}:</strong> ${message.text}</p>`;
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+    
+    // 發送訊息
+    document.getElementById("send-button").addEventListener("click", () => {
+        const input = document.getElementById("message-input");
+        const messageText = input.value.trim();
+        if (messageText !== "") {
+            messagesRef.add({
+                user: "使用者名稱",  // 這裡可以改為動態使用者
+                text: messageText,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            input.value = "";
+        }
+    });
+</script>
+
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
