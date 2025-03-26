@@ -1,9 +1,10 @@
 import firebase_admin
 import pyrebase
-from firebase_admin import credentials, firestore
-from flask import Flask, render_template, request, redirect, session
+from firebase_admin import credentials, firestore,storage
+from flask import Flask, render_template, request, redirect, session,jsonify
 from dotenv import load_dotenv
 import os
+import datetime
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -12,6 +13,7 @@ app.secret_key = "supersecretkey"
 cred = credentials.Certificate("firebase_config.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
+bucket = storage.bucket()
 load_dotenv()
 
 firebase_api_key = os.getenv("FIREBASE_API_KEY")
@@ -97,3 +99,44 @@ def logout():
 
 if __name__ == "__main__":
     app.run
+
+# 個人頁面
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    if "user" not in session:
+        return redirect("/login")  # 未登入則跳轉到登入頁
+    return render_template("profile.html")  # 渲染個人資料頁面
+
+# 聊天室
+@app.route("/message", methods=["GET", "POST"])
+def message():
+    if "user" not in session:
+        return redirect("/login")  # 未登入則跳轉到登入頁
+    return render_template("message.html")  # 渲染聊天室頁面
+
+# 設定
+@app.route("/setting", methods=["GET", "POST"])
+def setting():
+    if "user" not in session:
+        return redirect("/login")  # 未登入則跳轉到登入頁
+    return render_template("setting.html")  # 渲染設定頁面
+
+# 傳送訊息
+@app.route("/send_message", methods=["POST"])
+def send_message():
+    data = request.json
+    chat_id = data["chat_id"]
+    sender = data["sender"]
+    text = data.get("text", "")
+
+    if not chat_id or not sender:
+        return jsonify({"error": "缺少 chat_id 或 sender"}), 400
+
+    message_ref = db.collection("chats").document(chat_id).collection("messages").document()
+    message_ref.set({
+        "sender": sender,
+        "text": text,
+        "timestamp": datetime.datetime.utcnow()
+    })
+
+    return jsonify({"message": "訊息已送出"}), 200
