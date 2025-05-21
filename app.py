@@ -96,9 +96,6 @@ def logout():
     session.pop("user", None)
     return redirect("/login")  
 
-if __name__ == "__main__":
-    app.run(debug=True)
-
 
 # 個人頁面
 @app.route("/profile", methods=["GET", "POST"])
@@ -147,3 +144,6 @@ def collects():
 #     })
 
 #     return jsonify({"message": "訊息已送出"}), 200
+
+if __name__ == "__main__":
+    app.run(debug=True)
