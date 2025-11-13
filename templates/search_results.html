@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}搜尋結果 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">搜尋結果</h2>
+    </div>
+
+    <!-- 搜尋資訊 -->
+    <div class="search-info">
+        <p>搜尋類型：<strong>{{ "書籍" if search_type == "books" else "我想要書" }}</strong></p>
+        <p>關鍵字：<strong>{{ search_query }}</strong></p>
+    </div>
+
+    <!-- 搜尋結果 -->
+    {% if search_type == "books" %}
+        <div class="book-list">
+            {% if books %}
+                <h3 class="section-title">找到 {{ books|length }} 本書籍</h3>
+                {% for book in books %}
+                <div class="book-card" onclick="viewBookDetail('{{ book.id }}')" style="cursor: pointer;">
+                    {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
+                        <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
+                    {% endif %}
+                    <div class="book-info">
+                        <h3 class="book-title">{{ book.title }}</h3>
+                        <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
+                        {% if book.rating %}
+                        <p class="book-rating">
+                            <i class="fas fa-star"></i>
+                            {{ "%.1f"|format(book.rating) }}
+                        </p>
+                        {% endif %}
+                        <p class="book-seller">
+                            <i class="fas fa-store"></i>
+                            {{ book.seller_display if book.seller_display else '未知' }}
+                        </p>
+                    </div>
+                    <div class="book-actions" onclick="event.stopPropagation();">
+                        <button class="action-btn" onclick="toggleFavorite('{{ book.id }}', this)" title="收藏">
+                            <i class="far fa-heart"></i>
+                        </button>
+                        <button class="action-btn" onclick="openMessage('{{ book.id }}')" title="留言">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-books">
+                    <p>找不到相關書籍</p>
+                    <p>請嘗試其他關鍵字</p>
+                </div>
+            {% endif %}
+        </div>
+    {% elif search_type == "wanted" %}
+        <div class="book-list">
+            {% if wanted_books %}
+                <h3 class="section-title">找到 {{ wanted_books|length }} 個需求</h3>
+                {% for wanted_book in wanted_books %}
+                <div class="book-card">
+                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ wanted_book.book_title }}" class="book-cover">
+                    <div class="book-info">
+                        <h3 class="book-title">{{ wanted_book.book_title if wanted_book.book_title else '未知書名' }}</h3>
+                        <p class="book-author">作者 {{ wanted_book.author if wanted_book.author else '未知' }}</p>
+                        {% if wanted_book.isbn %}
+                        <p class="book-isbn">
+                            <i class="fas fa-barcode"></i>
+                            ISBN: {{ wanted_book.isbn }}
+                        </p>
+                        {% endif %}
+                        {% if wanted_book.exchange_method %}
+                        <p class="book-exchange">
+                            <i class="fas fa-exchange-alt"></i>
+                            {{ wanted_book.exchange_method }}
+                        </p>
+                        {% endif %}
+                        {% if wanted_book.remarks %}
+                        <p class="book-remarks">{{ wanted_book.remarks }}</p>
+                        {% endif %}
+                        <p class="book-requester">
+                            <i class="fas fa-user-circle"></i>
+                            需求者：{{ wanted_book.requester_display if wanted_book.requester_display else '未知' }}
+                        </p>
+                        {% if wanted_book.created_at %}
+                        <p class="book-date">
+                            <small>{{ wanted_book.created_at }}</small>
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="book-actions" onclick="event.stopPropagation();">
+                        <button class="action-btn" onclick="contactRequester('{{ wanted_book.requester_email }}')" title="聯絡需求者">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-books">
+                    <p>找不到相關需求</p>
+                    <p>請嘗試其他關鍵字</p>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// 查看書籍詳情
+function viewBookDetail(bookId) {
+    window.location.href = '/book/' + bookId;
+}
+
+// 收藏功能
+function toggleFavorite(bookId, btn) {
+    const icon = btn.querySelector('i');
+    if (icon.classList.contains('far')) {
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+        btn.classList.add('favorited');
+        // TODO: 發送到後端儲存收藏
+        console.log('收藏書籍:', bookId);
+    } else {
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+        btn.classList.remove('favorited');
+        // TODO: 發送到後端移除收藏
+        console.log('取消收藏:', bookId);
+    }
+}
+
+// 打開訊息
+function openMessage(bookId) {
+    window.location.href = '/message?book_id=' + bookId;
+}
+
+// 聯絡需求者
+function contactRequester(requesterEmail) {
+    window.location.href = '/message?user=' + encodeURIComponent(requesterEmail);
+}
+</script>
+{% endblock %}
+

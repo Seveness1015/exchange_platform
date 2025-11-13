@@ -1,11 +1,667 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block title %}個人資料 - 二手書平台{% endblock %}
 
-<!-- 主體內容 -->
-<div class="container text-center mt-5">
-    <h1>個人資訊</h1>
-    <p>先隨邊打點東西</p>
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">個人資料</h2>
+    </div>
+
+    <!-- 使用者資訊區塊 -->
+    <div class="profile-header">
+        <div class="profile-info-card">
+            <div class="profile-avatar-section">
+                <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="使用者頭像" class="profile-avatar-large">
+            </div>
+            <div class="profile-info-section">
+                <h3 class="profile-username">{{ user_display }}</h3>
+                <div class="profile-rating">
+                    <i class="fas fa-star"></i>
+                    <span class="rating-value">{{ rating_text }}</span>
+                    <span class="rating-description">({{ rating_description }})</span>
+                </div>
+            </div>
+            <div class="profile-actions">
+                {% if is_own_profile %}
+                <button class="profile-action-btn" onclick="openChat()" title="聊天">
+                    <i class="fas fa-comment"></i>
+                </button>
+                <div class="profile-menu-container">
+                    <button class="profile-action-btn" onclick="toggleProfileMenu(event)" title="更多選項">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <!-- 下拉選單 -->
+                    <div class="profile-dropdown-menu" id="profileMenu">
+                        <a href="/edit_profile" class="profile-menu-item" onclick="closeProfileMenu()">
+                            <i class="fas fa-user-edit"></i>
+                            <span>編輯個人資訊</span>
+                        </a>
+                        <a href="/change_password" class="profile-menu-item" onclick="closeProfileMenu()">
+                            <i class="fas fa-key"></i>
+                            <span>修改密碼</span>
+                        </a>
+                        <a href="/setting" class="profile-menu-item" onclick="closeProfileMenu()">
+                            <i class="fas fa-cog"></i>
+                            <span>設定</span>
+                        </a>
+                        <div class="profile-menu-divider"></div>
+                        <a href="/logout" class="profile-menu-item logout-item" onclick="closeProfileMenu()">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>登出</span>
+                        </a>
+                        <div class="profile-menu-divider"></div>
+                        <a href="#" class="profile-menu-item danger-item" onclick="event.preventDefault(); showDeleteAccountConfirm();">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>刪除帳號</span>
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <button class="profile-action-btn" onclick="openChat()" title="聊天">
+                    <i class="fas fa-comment"></i>
+                </button>
+                <button class="profile-action-btn" onclick="showMoreOptions()" title="更多選項">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除帳號確認對話框 -->
+    <div class="confirm-modal-overlay" id="deleteAccountModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-header">
+                <h4>確認刪除帳號</h4>
+            </div>
+            <div class="confirm-modal-body">
+                <p>您確定要刪除帳號嗎？</p>
+                <p class="warning-text">此操作無法復原，所有資料將被永久刪除。</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-btn cancel-btn" onclick="closeDeleteAccountConfirm()">取消</button>
+                <button class="confirm-btn danger-btn" onclick="confirmDeleteAccount()">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除書籍確認對話框 -->
+    <div class="confirm-modal-overlay" id="deleteBookModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-header">
+                <h4>確認刪除書籍</h4>
+            </div>
+            <div class="confirm-modal-body">
+                <p>您確定要刪除這本書籍嗎？</p>
+                <p class="warning-text">此操作無法復原。</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-btn cancel-btn" onclick="closeDeleteBookConfirm()">取消</button>
+                <button class="confirm-btn danger-btn" onclick="confirmDeleteBook()">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除想要書確認對話框 -->
+    <div class="confirm-modal-overlay" id="deleteWantedBookModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-header">
+                <h4>確認刪除需求</h4>
+            </div>
+            <div class="confirm-modal-body">
+                <p>您確定要刪除這個書籍需求嗎？</p>
+                <p class="warning-text">此操作無法復原。</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-btn cancel-btn" onclick="closeDeleteWantedBookConfirm()">取消</button>
+                <button class="confirm-btn danger-btn" onclick="confirmDeleteWantedBook()">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刪除書評確認對話框 -->
+    <div class="confirm-modal-overlay" id="deleteReviewModal">
+        <div class="confirm-modal">
+            <div class="confirm-modal-header">
+                <h4>確認刪除書評</h4>
+            </div>
+            <div class="confirm-modal-body">
+                <p>您確定要刪除這則書評嗎？</p>
+                <p class="warning-text">此操作無法復原。</p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="confirm-btn cancel-btn" onclick="closeDeleteReviewConfirm()">取消</button>
+                <button class="confirm-btn danger-btn" onclick="confirmDeleteReview()">確認刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 標籤切換 -->
+    <div class="profile-tabs">
+        <button class="profile-tab" id="neededTab" onclick="switchTab('needed')">
+            需要的
+        </button>
+        <button class="profile-tab active" id="providedTab" onclick="switchTab('provided')">
+            提供的
+        </button>
+        <button class="profile-tab" id="reviewsTab" onclick="switchTab('reviews')">
+            書評
+        </button>
+    </div>
+
+    <!-- 書籍列表區域 -->
+    <div class="profile-content">
+        <!-- 提供的書籍 -->
+        <div class="tab-content active" id="providedContent">
+            <div class="book-list">
+                {% if provided_books %}
+                    {% for book in provided_books %}
+                    <div class="book-card">
+                        {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
+                            <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
+                        {% endif %}
+                        <div class="book-info">
+                            <h3 class="book-title">{{ book.title }}</h3>
+                            <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
+                            {% if book.rating %}
+                            <p class="book-rating">
+                                <i class="fas fa-star"></i>
+                                {{ "%.1f"|format(book.rating) }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="book-actions">
+                            {% if is_own_profile %}
+                            <div class="book-menu-container">
+                                <button class="action-btn" onclick="toggleBookMenu('{{ book.id }}', 'provided', event)" title="更多選項">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="book-dropdown-menu" id="bookMenu-{{ book.id }}">
+                                    <a href="#" class="book-menu-item" onclick="event.preventDefault(); editBook('{{ book.id }}', 'provided');">
+                                        <i class="fas fa-edit"></i>
+                                        <span>編輯</span>
+                                    </a>
+                                    <div class="book-menu-divider"></div>
+                                    <a href="#" class="book-menu-item danger-item" onclick="event.preventDefault(); showDeleteBookConfirm('{{ book.id }}', 'provided');">
+                                        <i class="fas fa-trash-alt"></i>
+                                        <span>刪除</span>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-books">
+                        <p>目前沒有提供的書籍</p>
+                        {% if is_own_profile %}
+                        <p>點擊發布按鈕來新增書籍吧！</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 需要的書籍 -->
+        <div class="tab-content" id="neededContent">
+            <div class="book-list">
+                {% if needed_books %}
+                    {% for book in needed_books %}
+                    <div class="book-card">
+                        <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.book_title }}" class="book-cover">
+                        <div class="book-info">
+                            <h3 class="book-title">{{ book.book_title if book.book_title else '未知書名' }}</h3>
+                            <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
+                            {% if book.isbn %}
+                            <p class="book-isbn">
+                                <i class="fas fa-barcode"></i>
+                                ISBN: {{ book.isbn }}
+                            </p>
+                            {% endif %}
+                            {% if book.exchange_method %}
+                            <p class="book-exchange">
+                                <i class="fas fa-exchange-alt"></i>
+                                {{ book.exchange_method }}
+                            </p>
+                            {% endif %}
+                            {% if book.remarks %}
+                            <p class="book-remarks">{{ book.remarks }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="book-actions">
+                            {% if is_own_profile %}
+                            <div class="book-menu-container">
+                                <button class="action-btn" onclick="toggleBookMenu('{{ book.id }}', 'wanted', event)" title="更多選項">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="book-dropdown-menu" id="bookMenu-{{ book.id }}">
+                                    <a href="#" class="book-menu-item" onclick="event.preventDefault(); editWantedBook('{{ book.id }}');">
+                                        <i class="fas fa-edit"></i>
+                                        <span>編輯</span>
+                                    </a>
+                                    <div class="book-menu-divider"></div>
+                                    <a href="#" class="book-menu-item danger-item" onclick="event.preventDefault(); showDeleteWantedBookConfirm('{{ book.id }}');">
+                                        <i class="fas fa-trash-alt"></i>
+                                        <span>刪除</span>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-books">
+                        <p>目前沒有需要的書籍</p>
+                        {% if is_own_profile %}
+                        <p>點擊發布按鈕來新增想要的書籍吧！</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 書評 -->
+        <div class="tab-content" id="reviewsContent">
+            <div class="book-list">
+                {% if reviews %}
+                    {% for review in reviews %}
+                    <div class="book-card">
+                        <div class="book-info" style="flex: 1;">
+                            <h3 class="book-title">{{ review.book_title if review.book_title else '未知書名' }}</h3>
+                            <p class="book-author-label">課程：{{ review.course_name if review.course_name else '未知' }}</p>
+                            <p class="book-author">
+                                <i class="fas fa-user"></i>
+                                {{ review.instructor if review.instructor else '未知老師' }}
+                            </p>
+                            <p class="book-author">
+                                <i class="fas fa-graduation-cap"></i>
+                                {{ review.department if review.department else '' }} - {{ review.major if review.major else '' }}
+                            </p>
+                            <p class="book-rating">
+                                <i class="fas fa-star"></i>
+                                {{ review.rating if review.rating else 0 }}
+                            </p>
+                            <p class="review-content">{{ review.review_content if review.review_content else '無詳細內容' }}</p>
+                            {% if review.created_at %}
+                            <p class="review-date">
+                                <small>{{ review.created_at }}</small>
+                            </p>
+                            {% endif %}
+                        </div>
+                        <div class="book-actions">
+                            {% if is_own_profile %}
+                            <div class="book-menu-container">
+                                <button class="action-btn" onclick="toggleBookMenu('{{ review.id }}', 'review', event)" title="更多選項">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="book-dropdown-menu" id="bookMenu-{{ review.id }}">
+                                    <a href="#" class="book-menu-item" onclick="event.preventDefault(); editReview('{{ review.id }}');">
+                                        <i class="fas fa-edit"></i>
+                                        <span>編輯</span>
+                                    </a>
+                                    <div class="book-menu-divider"></div>
+                                    <a href="#" class="book-menu-item danger-item" onclick="event.preventDefault(); showDeleteReviewConfirm('{{ review.id }}');">
+                                        <i class="fas fa-trash-alt"></i>
+                                        <span>刪除</span>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-books">
+                        <p>目前沒有書評</p>
+                        {% if is_own_profile %}
+                        <p>新增書籍時可以同時撰寫書評！</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 
+<script>
+// 標籤切換功能
+function switchTab(tabName) {
+    // 移除所有活動狀態
+    document.querySelectorAll('.profile-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // 激活選中的標籤
+    if (tabName === 'needed') {
+        document.getElementById('neededTab').classList.add('active');
+        document.getElementById('neededContent').classList.add('active');
+    } else if (tabName === 'provided') {
+        document.getElementById('providedTab').classList.add('active');
+        document.getElementById('providedContent').classList.add('active');
+    } else if (tabName === 'reviews') {
+        document.getElementById('reviewsTab').classList.add('active');
+        document.getElementById('reviewsContent').classList.add('active');
+    }
+}
+
+// 打開聊天
+function openChat() {
+    window.location.href = '/message';
+}
+
+// 切換個人資料選單
+function toggleProfileMenu(event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    const menu = document.getElementById('profileMenu');
+    if (menu) {
+        menu.classList.toggle('show');
+    }
+}
+
+// 關閉個人資料選單
+function closeProfileMenu() {
+    const menu = document.getElementById('profileMenu');
+    if (menu) {
+        menu.classList.remove('show');
+    }
+}
+
+// 點擊外部關閉選單
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('click', function(event) {
+        const menu = document.getElementById('profileMenu');
+        const menuContainer = document.querySelector('.profile-menu-container');
+        if (menu && menuContainer && !menuContainer.contains(event.target)) {
+            closeProfileMenu();
+        }
+    });
+    
+    // ESC 鍵關閉選單
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeProfileMenu();
+            closeDeleteAccountConfirm();
+            closeDeleteBookConfirm();
+            closeDeleteWantedBookConfirm();
+            closeDeleteReviewConfirm();
+            closeAllBookMenus();
+        }
+    });
+    
+    // 點擊外部關閉書籍選單
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.book-menu-container')) {
+            closeAllBookMenus();
+        }
+    });
+});
+
+// 顯示刪除帳號確認對話框
+function showDeleteAccountConfirm() {
+    const modal = document.getElementById('deleteAccountModal');
+    if (modal) {
+        modal.classList.add('show');
+        closeProfileMenu(); // 關閉下拉選單
+    }
+}
+
+// 關閉刪除帳號確認對話框
+function closeDeleteAccountConfirm() {
+    const modal = document.getElementById('deleteAccountModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+// 確認刪除帳號
+function confirmDeleteAccount() {
+    if (confirm('最後確認：您確定要刪除帳號嗎？此操作無法復原！')) {
+        // 發送刪除請求
+        fetch('/delete_account', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ confirm: true })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('帳號已刪除');
+                window.location.href = '/login';
+            } else {
+                alert('刪除失敗：' + (data.error || '未知錯誤'));
+            }
+        })
+        .catch(error => {
+            console.error('錯誤:', error);
+            alert('刪除帳號時發生錯誤，請稍後再試');
+        });
+        
+        closeDeleteAccountConfirm();
+    }
+}
+
+// 當前打開的選單ID
+let currentBookMenuId = null;
+let currentBookMenuType = null;
+
+// 切換書籍選單
+function toggleBookMenu(id, type, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    const menuId = 'bookMenu-' + id;
+    const menu = document.getElementById(menuId);
+    
+    // 如果點擊的是當前打開的選單，則關閉它
+    if (currentBookMenuId === menuId && menu && menu.classList.contains('show')) {
+        closeAllBookMenus();
+        return;
+    }
+    
+    // 關閉其他選單
+    closeAllBookMenus();
+    
+    // 打開當前選單
+    if (menu) {
+        menu.classList.add('show');
+        currentBookMenuId = menuId;
+        currentBookMenuType = type;
+    }
+}
+
+// 關閉所有書籍選單
+function closeAllBookMenus() {
+    const menus = document.querySelectorAll('.book-dropdown-menu');
+    menus.forEach(menu => {
+        menu.classList.remove('show');
+    });
+    currentBookMenuId = null;
+    currentBookMenuType = null;
+}
+
+// 編輯書籍
+function editBook(bookId, type) {
+    closeAllBookMenus();
+    window.location.href = '/edit_book/' + bookId;
+}
+
+// 編輯想要書
+function editWantedBook(wantedBookId) {
+    closeAllBookMenus();
+    window.location.href = '/edit_wanted_book/' + wantedBookId;
+}
+
+// 編輯書評
+function editReview(reviewId) {
+    closeAllBookMenus();
+    window.location.href = '/edit_review/' + reviewId;
+}
+
+// 刪除書籍相關變數
+let deleteBookId = null;
+let deleteBookType = null;
+
+// 顯示刪除書籍確認對話框
+function showDeleteBookConfirm(bookId, type) {
+    closeAllBookMenus();
+    deleteBookId = bookId;
+    deleteBookType = type;
+    const modal = document.getElementById('deleteBookModal');
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+// 關閉刪除書籍確認對話框
+function closeDeleteBookConfirm() {
+    const modal = document.getElementById('deleteBookModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    deleteBookId = null;
+    deleteBookType = null;
+}
+
+// 確認刪除書籍
+function confirmDeleteBook() {
+    if (!deleteBookId) return;
+    
+    fetch('/delete_book/' + deleteBookId, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('書籍已刪除');
+            window.location.reload();
+        } else {
+            alert('刪除失敗：' + (data.error || '未知錯誤'));
+        }
+    })
+    .catch(error => {
+        console.error('錯誤:', error);
+        alert('刪除書籍時發生錯誤，請稍後再試');
+    });
+    
+    closeDeleteBookConfirm();
+}
+
+// 刪除想要書相關變數
+let deleteWantedBookId = null;
+
+// 顯示刪除想要書確認對話框
+function showDeleteWantedBookConfirm(wantedBookId) {
+    closeAllBookMenus();
+    deleteWantedBookId = wantedBookId;
+    const modal = document.getElementById('deleteWantedBookModal');
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+// 關閉刪除想要書確認對話框
+function closeDeleteWantedBookConfirm() {
+    const modal = document.getElementById('deleteWantedBookModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    deleteWantedBookId = null;
+}
+
+// 確認刪除想要書
+function confirmDeleteWantedBook() {
+    if (!deleteWantedBookId) return;
+    
+    fetch('/delete_wanted_book/' + deleteWantedBookId, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('書籍需求已刪除');
+            window.location.reload();
+        } else {
+            alert('刪除失敗：' + (data.error || '未知錯誤'));
+        }
+    })
+    .catch(error => {
+        console.error('錯誤:', error);
+        alert('刪除書籍需求時發生錯誤，請稍後再試');
+    });
+    
+    closeDeleteWantedBookConfirm();
+}
+
+// 刪除書評相關變數
+let deleteReviewId = null;
+
+// 顯示刪除書評確認對話框
+function showDeleteReviewConfirm(reviewId) {
+    closeAllBookMenus();
+    deleteReviewId = reviewId;
+    const modal = document.getElementById('deleteReviewModal');
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+// 關閉刪除書評確認對話框
+function closeDeleteReviewConfirm() {
+    const modal = document.getElementById('deleteReviewModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+    deleteReviewId = null;
+}
+
+// 確認刪除書評
+function confirmDeleteReview() {
+    if (!deleteReviewId) return;
+    
+    fetch('/delete_review/' + deleteReviewId, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('書評已刪除');
+            window.location.reload();
+        } else {
+            alert('刪除失敗：' + (data.error || '未知錯誤'));
+        }
+    })
+    .catch(error => {
+        console.error('錯誤:', error);
+        alert('刪除書評時發生錯誤，請稍後再試');
+    });
+    
+    closeDeleteReviewConfirm();
+}
+</script>
 {% endblock %}

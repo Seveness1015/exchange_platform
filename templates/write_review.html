@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+
+{% block title %}想寫書評 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">想寫書評</h2>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form id="writeReviewForm" method="POST" action="/write_review">
+        <!-- 書籍評價區塊 -->
+        <div class="form-section">
+            <h3 class="section-title">請幫助我們填寫書籍評價</h3>
+            
+            <div class="form-group">
+                <label for="book_title">書名:</label>
+                <input type="text" class="form-control" id="book_title" name="book_title" required>
+            </div>
+            
+            <!-- 星級評分 -->
+            <div class="form-group">
+                <label>評分:</label>
+                <div class="rating-stars">
+                    <input type="radio" id="star5" name="rating" value="5" class="star-input">
+                    <label for="star5" class="star-label"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star4" name="rating" value="4" class="star-input" checked>
+                    <label for="star4" class="star-label"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star3" name="rating" value="3" class="star-input">
+                    <label for="star3" class="star-label"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star2" name="rating" value="2" class="star-input">
+                    <label for="star2" class="star-label"><i class="fas fa-star"></i></label>
+                    <input type="radio" id="star1" name="rating" value="1" class="star-input">
+                    <label for="star1" class="star-label"><i class="fas fa-star"></i></label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="department">系所:</label>
+                <select class="form-control" id="department" name="department" required onchange="updateMajors()">
+                    <option value="">請選擇系所</option>
+                    <option value="工程學院">工程學院</option>
+                    <option value="電資學院">電資學院</option>
+                    <option value="管理學院">管理學院</option>
+                    <option value="設計學院">設計學院</option>
+                    <option value="人文社會學院">人文社會學院</option>
+                    <option value="應用科技學院">應用科技學院</option>
+                    <option value="產學創新學院">產學創新學院</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="major">科系:</label>
+                <select class="form-control" id="major" name="major" required>
+                    <option value="">請先選擇系所</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="grade">年級:</label>
+                <select class="form-control" id="grade" name="grade" required>
+                    <option value="">請選擇年級</option>
+                    <option value="大一">大一</option>
+                    <option value="大二">大二</option>
+                    <option value="大三">大三</option>
+                    <option value="大四">大四</option>
+                    <option value="研究所">研究所</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="course_name">課程名稱:</label>
+                <input type="text" class="form-control" id="course_name" name="course_name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="instructor">授課老師:</label>
+                <input type="text" class="form-control" id="instructor" name="instructor" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="review_content">詳細內容:</label>
+                <textarea class="form-control" id="review_content" name="review_content" rows="5" placeholder="請輸入詳細內容..." required></textarea>
+            </div>
+        </div>
+
+        <!-- 提交按鈕 -->
+        <div class="form-submit">
+            <button type="submit" class="submit-btn">送出</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// 系所與科系對應資料
+const departmentMajors = {
+    "工程學院": [
+        "自動化及控制研究所",
+        "機械工程系",
+        "材料科學與工程系",
+        "營建工程系",
+        "化學工程系",
+        "工程學士班",
+        "高階科技研發碩士學位學程(EMRD在職專班)",
+        "先進科技全英語學士學位學程",
+        "全球發展工程學士學位學程",
+        "半導體高階經營暨研發碩士在職學位學程 (SEMI-EMRD)"
+    ],
+    "電資學院": [
+        "電子工程系",
+        "電機工程系",
+        "資訊工程系",
+        "光電工程研究所",
+        "電資學士班",
+        "資通科技國際學士學位學程"
+    ],
+    "管理學院": [
+        "管理研究所",
+        "工業管理系",
+        "企業管理系",
+        "財務金融研究所",
+        "資訊管理系",
+        "管理學院MBA",
+        "EMBA碩士在職專班",
+        "科技管理研究所",
+        "管理學士班"
+    ],
+    "設計學院": [
+        "設計系",
+        "建築系"
+    ],
+    "人文社會學院": [
+        "數位學習與教育研究所",
+        "應用外語系",
+        "人文社會學科",
+        "師資培育中心"
+    ],
+    "應用科技學院": [
+        "應用科技研究所",
+        "醫學工程研究所",
+        "專利研究所",
+        "色彩與照明科技研究所",
+        "不分系學士班",
+        "應用科技學士學位學程",
+        "智慧財產權學士學位學程",
+        "色彩影像與照明科技學士學位學程"
+    ],
+    "產學創新學院": [
+        "智慧製造科技研究所",
+        "人工智慧跨域科技研究所",
+        "能源永續科技研究所",
+        "先進半導體科技研究所"
+    ]
+};
+
+// 根據系所更新科系選項
+function updateMajors() {
+    const departmentSelect = document.getElementById('department');
+    const majorSelect = document.getElementById('major');
+    const selectedDepartment = departmentSelect.value;
+    
+    // 清空科系選項
+    majorSelect.innerHTML = '<option value="">請選擇科系</option>';
+    
+    // 如果有選擇系所，載入對應的科系
+    if (selectedDepartment && departmentMajors[selectedDepartment]) {
+        const majors = departmentMajors[selectedDepartment];
+        majors.forEach(function(major) {
+            const option = document.createElement('option');
+            option.value = major;
+            option.textContent = major;
+            majorSelect.appendChild(option);
+        });
+    } else {
+        majorSelect.innerHTML = '<option value="">請先選擇系所</option>';
+    }
+}
+
+// 星級評分功能
+document.addEventListener('DOMContentLoaded', function() {
+    const starInputs = document.querySelectorAll('.star-input');
+    const starLabels = document.querySelectorAll('.star-label');
+    const ratingStars = document.querySelector('.rating-stars');
+    
+    // 初始化星級評分（預設為4星）
+    updateStars(4);
+    
+    starInputs.forEach((input, index) => {
+        input.addEventListener('change', function() {
+            const rating = parseInt(this.value);
+            updateStars(rating);
+        });
+    });
+    
+    starLabels.forEach((label, index) => {
+        label.addEventListener('mouseenter', function() {
+            const rating = 5 - index;
+            highlightStars(rating);
+        });
+    });
+    
+    if (ratingStars) {
+        ratingStars.addEventListener('mouseleave', function() {
+            const selectedInput = document.querySelector('.star-input:checked');
+            if (selectedInput) {
+                updateStars(parseInt(selectedInput.value));
+            } else {
+                updateStars(4); // 預設為4星
+            }
+        });
+    }
+});
+
+function updateStars(rating) {
+    const starLabels = document.querySelectorAll('.star-label');
+    // 移除所有 highlight 類別
+    starLabels.forEach(label => {
+        label.classList.remove('highlight');
+    });
+    
+    // 由於使用了 row-reverse，需要反向計算
+    starLabels.forEach((label, index) => {
+        if ((5 - index) <= rating) {
+            label.classList.add('active');
+        } else {
+            label.classList.remove('active');
+        }
+    });
+}
+
+function highlightStars(rating) {
+    const starLabels = document.querySelectorAll('.star-label');
+    starLabels.forEach((label, index) => {
+        if ((5 - index) <= rating) {
+            label.classList.add('highlight');
+        } else {
+            label.classList.remove('highlight');
+        }
+    });
+}
+
+// 表單驗證
+document.getElementById('writeReviewForm').addEventListener('submit', function(e) {
+    const bookTitle = document.getElementById('book_title').value.trim();
+    const selectedRating = document.querySelector('.star-input:checked');
+    const rating = selectedRating ? selectedRating.value : '4';
+    const department = document.getElementById('department').value;
+    const major = document.getElementById('major').value;
+    const grade = document.getElementById('grade').value;
+    const courseName = document.getElementById('course_name').value.trim();
+    const instructor = document.getElementById('instructor').value.trim();
+    const reviewContent = document.getElementById('review_content').value.trim();
+    
+    if (!bookTitle) {
+        e.preventDefault();
+        alert('請輸入書名');
+        return false;
+    }
+    
+    if (!rating || !department || !major || !grade || !courseName || !instructor || !reviewContent) {
+        e.preventDefault();
+        if (!department) {
+            alert('請選擇系所');
+        } else if (!major || major === '請先選擇系所' || major === '請選擇科系') {
+            alert('請選擇科系');
+        } else {
+            alert('請填寫完整的評價資訊');
+        }
+        return false;
+    }
+    
+    // 驗證科系是否屬於所選系所
+    if (department && departmentMajors[department]) {
+        const validMajors = departmentMajors[department];
+        if (!validMajors.includes(major)) {
+            e.preventDefault();
+            alert('請選擇有效的科系');
+            return false;
+        }
+    }
+    
+    return true;
+});
+</script>
+{% endblock %}
+

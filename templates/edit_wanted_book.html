@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}編輯我想要書 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/profile" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">編輯我想要書</h2>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form id="editWantedBookForm" method="POST" action="/edit_wanted_book/{{ wanted_book.id }}">
+        <!-- 書籍資訊區塊 -->
+        <div class="form-section">
+            <h3 class="section-title">書籍資訊</h3>
+            
+            <div class="form-group">
+                <label for="book_title">書名:</label>
+                <input type="text" class="form-control" id="book_title" name="book_title" value="{{ wanted_book.book_title if wanted_book.book_title else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="author">作者:</label>
+                <input type="text" class="form-control" id="author" name="author" value="{{ wanted_book.author if wanted_book.author else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="isbn">ISBN:</label>
+                <input type="text" class="form-control" id="isbn" name="isbn" value="{{ wanted_book.isbn if wanted_book.isbn else '' }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="exchange_method">交換方式:</label>
+                <input type="text" class="form-control" id="exchange_method" name="exchange_method" value="{{ wanted_book.exchange_method if wanted_book.exchange_method else '' }}" placeholder="例如：面交、郵寄等">
+            </div>
+            
+            <div class="form-group">
+                <label for="remarks">其他備註:</label>
+                <textarea class="form-control" id="remarks" name="remarks" rows="3" placeholder="請描述您想要的書籍條件、用途等...">{{ wanted_book.remarks if wanted_book.remarks else '' }}</textarea>
+            </div>
+        </div>
+
+        <!-- 提交按鈕 -->
+        <div class="form-submit">
+            <button type="submit" class="submit-btn">更新</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// 表單驗證
+document.getElementById('editWantedBookForm').addEventListener('submit', function(e) {
+    const bookTitle = document.getElementById('book_title').value.trim();
+    const author = document.getElementById('author').value.trim();
+    
+    if (!bookTitle || !author) {
+        e.preventDefault();
+        alert('請填寫完整的書籍資訊（書名和作者為必填）');
+        return false;
+    }
+    
+    return true;
+});
+</script>
+{% endblock %}
+

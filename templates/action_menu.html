@@ -1,0 +1,100 @@
+<!-- 彈出選單 -->
+<div class="action-menu-overlay" id="actionMenuOverlay">
+    <div class="action-menu-popup" id="actionMenuPopup">
+        <div class="action-menu-header">
+            <h4>選擇操作</h4>
+            <button class="action-menu-close" onclick="closeActionMenu()" type="button">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="action-menu-items">
+            <a href="/add_book" class="action-menu-item">
+                <div class="action-menu-icon">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="action-menu-text">
+                    <h5>我要換書</h5>
+                    <p>發布要交換的書籍</p>
+                </div>
+            </a>
+            <a href="/wanted_book" class="action-menu-item">
+                <div class="action-menu-icon">
+                    <i class="fas fa-book-reader"></i>
+                </div>
+                <div class="action-menu-text">
+                    <h5>我想要書</h5>
+                    <p>發布想要的書籍需求</p>
+                </div>
+            </a>
+            <a href="/write_review" class="action-menu-item">
+                <div class="action-menu-icon">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="action-menu-text">
+                    <h5>想寫書評</h5>
+                    <p>為書籍撰寫評價</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// 確保函數在全局範圍內可訪問
+window.showActionMenu = function() {
+    const overlay = document.getElementById('actionMenuOverlay');
+    if (overlay) {
+        overlay.classList.add('show');
+        document.body.style.overflow = 'hidden'; // 防止背景滾動
+    }
+};
+
+window.closeActionMenu = function() {
+    const overlay = document.getElementById('actionMenuOverlay');
+    if (overlay) {
+        overlay.classList.remove('show');
+        document.body.style.overflow = ''; // 恢復滾動
+    }
+};
+
+window.showComingSoon = function(feature) {
+    alert(feature + ' 功能即將推出！');
+};
+
+// 點擊背景關閉選單
+document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('actionMenuOverlay');
+    const popup = document.getElementById('actionMenuPopup');
+    
+    if (overlay && popup) {
+        // 點擊背景（overlay）關閉選單
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                closeActionMenu();
+            }
+        });
+        
+        // 點擊選單內的連結時關閉選單
+        const menuItems = popup.querySelectorAll('.action-menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('click', function() {
+                // 如果是有效連結（非 #），延遲關閉以確保導航發生
+                if (this.getAttribute('href') && this.getAttribute('href') !== '#') {
+                    setTimeout(closeActionMenu, 100);
+                }
+            });
+        });
+    }
+    
+    // ESC 鍵關閉選單
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const overlay = document.getElementById('actionMenuOverlay');
+            if (overlay && overlay.classList.contains('show')) {
+                closeActionMenu();
+            }
+        }
+    });
+});
+</script>
+

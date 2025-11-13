@@ -1,107 +1,65 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 30px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        .form-container {
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-<body>
+{% extends 'auth_base.html' %}
 
-<div class="login-container">
-    <h2 class="text-center mb-4">登入</h2>
-    
-    <form action="/login" method="post">
-        <!-- Std_num Field -->
-        <div class="form-container">
-            <label for="std_num" class="form-label">臺科大學號</label>
-            <input type="std_num" name="std_num" id="std_num" class="form-control" placeholder="學號" required>
+{% block title %}登入 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="auth-container">
+        <!-- 標題 -->
+        <div class="page-header">
+            <h2 class="page-title">登入</h2>
         </div>
 
-        <!-- Password Field -->
-        <div class="form-container">
-            <label for="password" class="form-label">密碼</label>
-            <input type="password" name="password" id="password" class="form-control" placeholder="密碼" required>
+        <!-- 錯誤訊息 -->
+        {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            學號或密碼錯誤，請確認後再試。
         </div>
+        {% endif %}
 
-        <!-- Submit Button -->
-        <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-primary btn-block">登入</button>
+        {% if no_email %}
+        <div class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-circle"></i>
+            您的電子郵件尚未驗證，請先驗證後再登入。
         </div>
-    </form>
+        {% endif %}
 
-    <!-- Registration Link -->
-    <div class="text-center mt-3">
-        <p>還沒有帳號？ <a href="/register">註冊</a></p>
+        <!-- 成功訊息 -->
+        {% if request.args.get('success') == 'password_reset' %}
+        <div class="alert alert-success" role="alert">
+            <i class="fas fa-check-circle"></i>
+            密碼重設郵件已發送，請檢查您的電子郵件。
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/login" id="loginForm">
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="std_num">臺科大學號:</label>
+                    <input type="text" class="form-control" id="std_num" name="std_num" placeholder="請輸入學號" required autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">密碼:</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="請輸入密碼" required>
+                </div>
+                
+                <div class="form-group" style="text-align: right; margin-top: -10px; margin-bottom: 20px;">
+                    <a href="/forgot_password" class="forgot-password-link">忘記密碼？</a>
+                </div>
+            </div>
+
+            <!-- 提交按鈕 -->
+            <div class="form-submit">
+                <button type="submit" class="submit-btn">登入</button>
+            </div>
+        </form>
+
+        <!-- 註冊連結 -->
+        <div class="auth-link">
+            <p>還沒有帳號？ <a href="/register">立即註冊</a></p>
+        </div>
     </div>
 </div>
-
-<!-- Modal -->
-<div class="modal fade" id="loginErrorModal" tabindex="-1" aria-labelledby="loginErrorModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="loginErrorModalLabel">登入失敗</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p>學號或密碼錯誤，請確認後再試。</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="noEmailErrorModal" tabindex="-1" aria-labelledby="noEmailErrorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="noEmailErrorModalLabel">登入失敗</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <p>您未進行學校電子信箱驗證，請前往確認後再次嘗試。</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<!-- Bootstrap JS (Optional) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<script>
-    // 若登入失敗，彈出 Modal
-    {% if error %}
-        var errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
-        errorModal.show();
-    {% endif %}
-
-    {% if no_email %}
-    var errorModal = new bootstrap.Modal(document.getElementById('noEmailErrorModal'));
-    errorModal.show();
-    {% endif %}
-</script>
-
-</body>
-</html>
+{% endblock %}
