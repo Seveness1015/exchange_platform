@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}書籍詳情 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">書籍詳情</h2>
+    </div>
+
+    {% if book %}
+    <!-- 書籍資訊區塊 -->
+    <div class="book-detail-section">
+        <div class="book-detail-card">
+            <div class="book-detail-cover">
+                {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
+                    <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-detail-image" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-detail-image">
+                {% endif %}
+            </div>
+            <div class="book-detail-info">
+                <h2 class="book-detail-title">{{ book.title }}</h2>
+                <div class="book-detail-meta">
+                    <p class="book-detail-author">
+                        <i class="fas fa-user"></i>
+                        <span>作者：{{ book.author if book.author else '未知' }}</span>
+                    </p>
+                    {% if book.isbn %}
+                    <p class="book-detail-isbn">
+                        <i class="fas fa-barcode"></i>
+                        <span>ISBN：{{ book.isbn }}</span>
+                    </p>
+                    {% endif %}
+                    {% if book.condition %}
+                    <p class="book-detail-condition">
+                        <i class="fas fa-book"></i>
+                        <span>書況：{{ book.condition }}</span>
+                    </p>
+                    {% endif %}
+                    {% if book.exchange_method %}
+                    <p class="book-detail-exchange">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>交換方式：{{ book.exchange_method }}</span>
+                    </p>
+                    {% endif %}
+                    {% if book.rating %}
+                    <p class="book-detail-rating">
+                        <i class="fas fa-star"></i>
+                        <span>評分：{{ "%.1f"|format(book.rating) }}</span>
+                    </p>
+                    {% endif %}
+                    <p class="book-detail-seller">
+                        <i class="fas fa-store"></i>
+                        <span>賣家：{{ book.seller_display if book.seller_display else '未知' }}</span>
+                    </p>
+                </div>
+                {% if book.remarks %}
+                <div class="book-detail-remarks">
+                    <h4>其他備註</h4>
+                    <p>{{ book.remarks }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 書籍評價區塊 -->
+    <div class="book-reviews-section">
+        <h3 class="section-title">書籍評價</h3>
+        <div class="reviews-list">
+            {% if reviews %}
+                {% for review in reviews %}
+                <div class="review-card">
+                    <div class="review-header">
+                        <div class="review-rating">
+                            {% for i in range(1, 6) %}
+                                {% if i <= review.rating %}
+                                    <i class="fas fa-star"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="rating-value">{{ review.rating }}</span>
+                        </div>
+                        <div class="review-meta">
+                            <p class="review-course">
+                                <i class="fas fa-graduation-cap"></i>
+                                {{ review.course_name if review.course_name else '未知課程' }}
+                            </p>
+                            <p class="review-instructor">
+                                <i class="fas fa-user"></i>
+                                {{ review.instructor if review.instructor else '未知老師' }}
+                            </p>
+                            <p class="review-department">
+                                {{ review.department if review.department else '' }} - {{ review.major if review.major else '' }}
+                            </p>
+                            {% if review.created_at %}
+                            <p class="review-date">
+                                <small>{{ review.created_at }}</small>
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="review-content">
+                        <p>{{ review.review_content if review.review_content else '無詳細內容' }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-reviews">
+                    <p>目前沒有評價</p>
+                    <p>成為第一個為這本書寫評價的人吧！</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="book-detail-actions">
+        <button class="action-btn-large" onclick="openMessage('{{ book.id }}')">
+            <i class="fas fa-comment"></i>
+            <span>聯絡賣家</span>
+        </button>
+        <button class="action-btn-large" onclick="toggleFavorite('{{ book.id }}', this)">
+            <i class="far fa-heart"></i>
+            <span>收藏</span>
+        </button>
+    </div>
+    {% else %}
+    <div class="no-books">
+        <p>找不到書籍資訊</p>
+        <a href="/" class="back-link">返回首頁</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// 收藏功能
+function toggleFavorite(bookId, btn) {
+    const icon = btn.querySelector('i');
+    const span = btn.querySelector('span');
+    if (icon.classList.contains('far')) {
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+        span.textContent = '已收藏';
+        btn.classList.add('favorited');
+        // TODO: 發送到後端儲存收藏
+        console.log('收藏書籍:', bookId);
+    } else {
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+        span.textContent = '收藏';
+        btn.classList.remove('favorited');
+        // TODO: 發送到後端移除收藏
+        console.log('取消收藏:', bookId);
+    }
+}
+
+// 打開訊息
+function openMessage(bookId) {
+    window.location.href = '/message?book_id=' + bookId;
+}
+</script>
+{% endblock %}
+

@@ -1,17 +1,30 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">二手書平台</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+<!-- 頂部搜尋欄 -->
+<div class="top-search-bar">
+  <div class="d-flex align-items-center">
+    <!-- 應用程式標誌 -->
+    <i class="fas fa-book-open logo-icon"></i>
+    
+    <!-- 搜尋容器 -->
+    <div class="search-container">
+      <!-- 下拉選單 -->
+      <select class="search-dropdown" id="searchType">
+        <option value="books">書籍</option>
+        <option value="wanted">我想要書</option>
+      </select>
+      
+      <!-- 搜尋輸入欄 -->
+      <input type="text" class="search-input" id="searchInput" placeholder="要找什麼書呢？">
+      
+      <!-- 搜尋按鈕 -->
+      <button class="search-btn" id="searchBtn" type="button">
+        <i class="fas fa-search"></i>
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link active" href="/">首頁</a></li>
-          <li class="nav-item"><a class="nav-link" href="#">關於我們</a></li>
-          <li class="nav-item"><a class="nav-link" href="#">聯絡我們</a></li>
-          <li class="nav-item"><a class="btn btn-outline-light" href="/logout" role="button">登出</a></li>
-        </ul>
-      </div>
+      
+      <!-- AI 按鈕 -->
+      <button class="ai-btn" id="aiBtn" type="button" title="AI 推薦">
+        <i class="fas fa-robot"></i>
+      </button>
     </div>
-  </nav>
+  </div>
+</div>
   

@@ -1,15 +1,126 @@
 {% extends 'base.html' %}
   
-  {% block content %}
-<!-- 主體內容 -->
-<div class="container text-center mt-5">
-    <h1>歡迎來到二手書平台</h1>
-    <p>在這裡你可以交換你不再需要的書籍。</p>
-
-    <!-- 🔍 搜尋欄 -->
-    <div class="input-group mt-4 w-50 mx-auto">
-        <input type="text" class="form-control" placeholder="搜尋書籍...">
-        <button class="btn btn-primary" type="button"><i class="fas fa-search"></i></button>
+{% block content %}
+<!-- 主要內容區 -->
+<div class="main-content">
+    <!-- 成功訊息 -->
+    {% if request.args.get('success') == 'wanted_book_added' %}
+    <div class="alert alert-success" role="alert" id="successMessage">
+        <i class="fas fa-check-circle"></i>
+        書籍需求已成功發布！
+    </div>
+    {% endif %}
+    
+    {% if request.args.get('success') == 'review_added' %}
+    <div class="alert alert-success" role="alert" id="successMessage">
+        <i class="fas fa-check-circle"></i>
+        書評已成功發布！
+    </div>
+    {% endif %}
+    
+    <!-- 最新推薦標題 -->
+    <h2 class="section-title">最新推薦</h2>
+    
+    <!-- 書籍卡片列表 -->
+    <div class="book-list">
+        {% if books %}
+            {% for book in books %}
+            <div class="book-card" onclick="viewBookDetail('{{ book.id }}')" style="cursor: pointer;">
+                {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
+                    <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
+                {% endif %}
+                <div class="book-info">
+                    <h3 class="book-title">{{ book.title }}</h3>
+                    <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
+                    {% if book.rating %}
+                    <p class="book-rating">
+                        <i class="fas fa-star"></i>
+                        {{ "%.1f"|format(book.rating) }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="book-actions" onclick="event.stopPropagation();">
+                    <button class="action-btn" onclick="toggleFavorite('{{ book.id }}', this)" title="收藏">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <button class="action-btn" onclick="openMessage('{{ book.id }}')" title="留言">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                    <button class="action-btn" onclick="viewSellerProfile('{{ book.seller_email }}')" title="賣家資料">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                    <button class="action-btn" onclick="showMoreOptions('{{ book.id }}', this)" title="更多選項">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-books">
+                <p>目前沒有可交換的書籍</p>
+                <p>成為第一個發布書籍的人吧！</p>
+            </div>
+        {% endif %}
     </div>
 </div>
+
+<script>
+// 自動關閉成功訊息
+document.addEventListener('DOMContentLoaded', function() {
+    const successMessage = document.getElementById('successMessage');
+    if (successMessage) {
+        // 3秒後自動淡出成功訊息
+        setTimeout(function() {
+            successMessage.style.opacity = '0';
+            successMessage.style.transition = 'opacity 0.5s';
+            setTimeout(function() {
+                successMessage.style.display = 'none';
+            }, 500);
+        }, 3000);
+    }
+});
+
+// 切換收藏狀態
+function toggleFavorite(bookId, btn) {
+    const icon = btn.querySelector('i');
+    if (icon.classList.contains('far')) {
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+        btn.classList.add('favorited');
+        // TODO: 發送到後端儲存收藏
+        console.log('收藏書籍:', bookId);
+    } else {
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+        btn.classList.remove('favorited');
+        // TODO: 發送到後端移除收藏
+        console.log('取消收藏:', bookId);
+    }
+}
+
+// 打開訊息
+function openMessage(bookId) {
+    // TODO: 打開與賣家的聊天視窗
+    window.location.href = '/message?book_id=' + bookId;
+}
+
+// 查看書籍詳情
+function viewBookDetail(bookId) {
+    window.location.href = '/book/' + bookId;
+}
+
+// 查看賣家資料
+function viewSellerProfile(sellerEmail) {
+    // TODO: 顯示賣家資料
+    window.location.href = '/profile?user=' + encodeURIComponent(sellerEmail);
+}
+
+// 顯示更多選項
+function showMoreOptions(bookId, btn) {
+    // 這裡可以添加下拉選單功能
+    alert('更多選項功能待實現，書籍 ID: ' + bookId);
+}
+</script>
 {% endblock %}

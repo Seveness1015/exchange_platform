@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}編輯書籍 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/profile" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">編輯書籍</h2>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form id="editBookForm" method="POST" action="/edit_book/{{ book.id }}" enctype="multipart/form-data">
+        <!-- 書籍資訊區塊 -->
+        <div class="form-section">
+            <h3 class="section-title">書籍資訊</h3>
+            
+            <div class="form-group">
+                <label for="book_title">書名:</label>
+                <input type="text" class="form-control" id="book_title" name="book_title" value="{{ book.title if book.title else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="author">作者:</label>
+                <input type="text" class="form-control" id="author" name="author" value="{{ book.author if book.author else '' }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="isbn">ISBN:</label>
+                <input type="text" class="form-control" id="isbn" name="isbn" value="{{ book.isbn if book.isbn else '' }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="condition">書況:</label>
+                <select class="form-control" id="condition" name="condition" required>
+                    <option value="">請選擇書況</option>
+                    <option value="近全新" {% if book.condition == '近全新' %}selected{% endif %}>近全新</option>
+                    <option value="良好" {% if book.condition == '良好' %}selected{% endif %}>良好</option>
+                    <option value="普通" {% if book.condition == '普通' %}selected{% endif %}>普通</option>
+                    <option value="可接受" {% if book.condition == '可接受' %}selected{% endif %}>可接受</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="exchange_method">交換方式:</label>
+                <input type="text" class="form-control" id="exchange_method" name="exchange_method" value="{{ book.exchange_method if book.exchange_method else '' }}" placeholder="例如：面交、郵寄等">
+            </div>
+            
+            <div class="form-group">
+                <label for="remarks">其他備註:</label>
+                <textarea class="form-control" id="remarks" name="remarks" rows="3" placeholder="其他說明...">{{ book.remarks if book.remarks else '' }}</textarea>
+            </div>
+            
+            <!-- 圖片上傳區域 -->
+            <div class="image-upload-section">
+                <label>書籍圖片:</label>
+                <div class="image-upload-container">
+                    <div class="image-upload-box">
+                        <input type="file" id="front_image" name="front_image" accept="image/*" class="image-input" onchange="previewImage(this, 'front_preview')">
+                        <label for="front_image" class="image-upload-label">
+                            <i class="fas fa-camera"></i>
+                            <span id="front_preview" class="image-preview">
+                                {% if book.front_image and book.front_image != '' %}
+                                    <img src="{{ book.front_image }}" alt="當前圖片" class="preview-img">
+                                {% endif %}
+                            </span>
+                        </label>
+                        <p class="image-hint">正面</p>
+                    </div>
+                    <div class="image-upload-box">
+                        <input type="file" id="back_image" name="back_image" accept="image/*" class="image-input" onchange="previewImage(this, 'back_preview')">
+                        <label for="back_image" class="image-upload-label">
+                            <i class="fas fa-camera"></i>
+                            <span id="back_preview" class="image-preview">
+                                {% if book.back_image and book.back_image != '' %}
+                                    <img src="{{ book.back_image }}" alt="當前圖片" class="preview-img">
+                                {% endif %}
+                            </span>
+                        </label>
+                        <p class="image-hint">反面</p>
+                    </div>
+                </div>
+                <p class="image-instruction">(請拍攝書籍正、反面，留空則不更新圖片)</p>
+            </div>
+        </div>
+
+        <!-- 提交按鈕 -->
+        <div class="form-submit">
+            <button type="submit" class="submit-btn">更新</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// 圖片預覽功能
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const file = input.files[0];
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" alt="預覽圖" class="preview-img">`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        // 如果沒有選擇新文件，保持原有圖片
+        if (!preview.innerHTML.includes('img')) {
+            preview.innerHTML = '';
+        }
+    }
+}
+
+// 表單驗證
+document.getElementById('editBookForm').addEventListener('submit', function(e) {
+    const bookTitle = document.getElementById('book_title').value.trim();
+    const author = document.getElementById('author').value.trim();
+    const condition = document.getElementById('condition').value;
+    
+    if (!bookTitle || !author || !condition) {
+        e.preventDefault();
+        alert('請填寫完整的書籍資訊');
+        return false;
+    }
+    
+    return true;
+});
+</script>
+{% endblock %}
+
