@@ -12,11 +12,19 @@
         <h2 class="page-title">個人資料</h2>
     </div>
 
+    <!-- 成功訊息 -->
+    {% if request.args.get('success') == 'profile_updated' %}
+    <div class="alert alert-success" role="alert" style="margin: 20px; padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 5px;">
+        <i class="fas fa-check-circle"></i>
+        個人資訊已成功更新！
+    </div>
+    {% endif %}
+
     <!-- 使用者資訊區塊 -->
     <div class="profile-header">
         <div class="profile-info-card">
             <div class="profile-avatar-section">
-                <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="使用者頭像" class="profile-avatar-large">
+                <img src="{{ url_for('static', filename='images/' + (user_avatar if user_avatar else 'user_cat01.png')) }}" alt="使用者頭像" class="profile-avatar-large">
             </div>
             <div class="profile-info-section">
                 <h3 class="profile-username">{{ user_display }}</h3>

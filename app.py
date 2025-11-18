@@ -1,11 +1,14 @@
 import firebase_admin
 import pyrebase
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, storage
 from flask import Flask, render_template, request, redirect, session,jsonify
 from dotenv import load_dotenv
 import os
 import datetime
 import requests
+from PIL import Image
+import io
+import uuid
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -40,22 +43,141 @@ def home():
     if "user" not in session:
         return redirect("/login")  # 未登入->登入頁面
     
+    # 首頁只顯示初始結構，書籍通過 AJAX 載入
+    return render_template("index.html", books=[])
+
+# 獲取推薦書籍（基於用戶的「我要換書」和收藏）
+@app.route("/api/recommended_books", methods=["GET"])
+def get_recommended_books():
+    if "user" not in session:
+        return jsonify({"success": False, "error": "未登入"}), 401
+    
     try:
-        # 從 Firestore 讀取其他人的書籍（排除當前用戶）
         current_user = session["user"]
-        books_ref = db.collection("books")
+        recommended_books = []
         
-        # 查詢所有狀態為 available 的書籍
-        # 注意：Firestore 不支援 != 運算符，所以我們先查詢所有，然後在 Python 中過濾
-        # 如果 order_by 需要索引，可以先移除排序
-        try:
-            books_query = books_ref.where("status", "==", "available").order_by("created_at", direction=firestore.Query.DESCENDING).limit(50)
-            books = books_query.stream()
-        except Exception as order_error:
-            # 如果排序失敗（可能是因為缺少索引），則不使用排序
-            print(f"排序查詢失敗，使用簡單查詢: {order_error}")
-            books_query = books_ref.where("status", "==", "available").limit(50)
-            books = books_query.stream()
+        # 獲取用戶的「我要換書」列表
+        wanted_books_ref = db.collection("wanted_books")
+        wanted_books_query = wanted_books_ref.where("requester_email", "==", current_user).limit(20)
+        wanted_books = wanted_books_query.stream()
+        
+        # 收集用戶想要的書籍關鍵字（書名、作者、ISBN）
+        wanted_keywords = set()
+        for wanted_book in wanted_books:
+            wanted_dict = wanted_book.to_dict()
+            if wanted_dict.get("book_title"):
+                wanted_keywords.add(wanted_dict["book_title"].lower())
+            if wanted_dict.get("author"):
+                wanted_keywords.add(wanted_dict["author"].lower())
+            if wanted_dict.get("isbn"):
+                wanted_keywords.add(wanted_dict["isbn"].lower())
+        
+        # 獲取用戶的收藏列表
+        favorites_ref = db.collection("favorites")
+        favorites_query = favorites_ref.where("user_email", "==", current_user).limit(20)
+        favorites = favorites_query.stream()
+        
+        favorite_book_ids = set()
+        favorite_keywords = set()
+        for favorite in favorites:
+            fav_dict = favorite.to_dict()
+            book_id = fav_dict.get("book_id")
+            if book_id:
+                favorite_book_ids.add(book_id)
+                # 獲取收藏書籍的資訊來提取關鍵字
+                book_ref = db.collection("books").document(book_id)
+                book_doc = book_ref.get()
+                if book_doc.exists:
+                    book_data = book_doc.to_dict()
+                    if book_data.get("title"):
+                        favorite_keywords.add(book_data["title"].lower())
+                    if book_data.get("author"):
+                        favorite_keywords.add(book_data["author"].lower())
+        
+        # 合併關鍵字
+        all_keywords = wanted_keywords.union(favorite_keywords)
+        
+        # 查詢所有可用的書籍
+        books_ref = db.collection("books")
+        books_query = books_ref.where("status", "==", "available").limit(200)
+        books = books_query.stream()
+        
+        recommended_candidates = []
+        other_books = []
+        
+        for book in books:
+            book_dict = book.to_dict()
+            book_dict["id"] = book.id
+            
+            # 過濾掉當前用戶的書籍
+            seller_email = book_dict.get("seller_email", "")
+            if seller_email == current_user:
+                continue
+            
+            # 處理書籍資料
+            book_dict = process_book_data(book_dict)
+            
+            # 檢查是否匹配關鍵字
+            title = book_dict.get("title", "").lower()
+            author = book_dict.get("author", "").lower()
+            isbn = book_dict.get("isbn", "").lower()
+            
+            is_recommended = False
+            if all_keywords:
+                for keyword in all_keywords:
+                    if keyword in title or keyword in author or keyword in isbn:
+                        is_recommended = True
+                        break
+            
+            if is_recommended:
+                recommended_candidates.append(book_dict)
+            else:
+                other_books.append(book_dict)
+        
+        # 按創建時間排序
+        recommended_candidates.sort(key=lambda x: x.get("created_at_timestamp", ""), reverse=True)
+        other_books.sort(key=lambda x: x.get("created_at_timestamp", ""), reverse=True)
+        
+        # 合併推薦書籍和其他書籍（推薦書籍在前）
+        recommended_books = recommended_candidates + other_books
+        
+        # 記錄已返回的書籍ID，避免重複
+        returned_book_ids = set()
+        unique_recommended = []
+        for book in recommended_books:
+            if book["id"] not in returned_book_ids:
+                unique_recommended.append(book)
+                returned_book_ids.add(book["id"])
+                if len(unique_recommended) >= 10:
+                    break
+        
+        return jsonify({
+            "success": True,
+            "books": unique_recommended,
+            "has_more": len(recommended_books) > len(unique_recommended)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"獲取推薦書籍時發生錯誤：{e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 獲取更多書籍（分頁）
+@app.route("/api/books", methods=["GET"])
+def get_books():
+    if "user" not in session:
+        return jsonify({"success": False, "error": "未登入"}), 401
+    
+    try:
+        current_user = session["user"]
+        page = int(request.args.get("page", 1))
+        page_size = 10
+        offset = (page - 1) * page_size
+        
+        # 查詢所有可用的書籍
+        books_ref = db.collection("books")
+        books_query = books_ref.where("status", "==", "available").limit(200)
+        books = books_query.stream()
         
         books_list = []
         for book in books:
@@ -67,90 +189,249 @@ def home():
             if seller_email == current_user:
                 continue
             
-            # 處理時間戳記
-            if "created_at" in book_dict and book_dict["created_at"]:
-                try:
-                    # 如果是 Timestamp 物件，轉換為字串
-                    if hasattr(book_dict["created_at"], "strftime"):
-                        book_dict["created_at"] = book_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")
-                    else:
-                        book_dict["created_at"] = str(book_dict["created_at"])
-                except:
-                    book_dict["created_at"] = str(book_dict["created_at"])
-            
-            # 獲取評價資訊以顯示評分
-            evaluation_id = book_dict.get("evaluation_id", "")
-            if evaluation_id:
-                try:
-                    eval_ref = db.collection("evaluations").document(evaluation_id)
-                    eval_doc = eval_ref.get()
-                    if eval_doc.exists:
-                        eval_dict = eval_doc.to_dict()
-                        book_dict["rating"] = eval_dict.get("rating", 0)
-                    else:
-                        book_dict["rating"] = 0
-                except:
-                    book_dict["rating"] = 0
-            else:
-                book_dict["rating"] = 0
-            
-            # 處理賣家電子郵件顯示（只顯示學號部分）
-            seller_email = book_dict.get("seller_email", "")
-            if seller_email:
-                # 從 email 中提取學號（例如：B12345678@mail.ntust.edu.tw -> B12345678）
-                if "@" in seller_email:
-                    book_dict["seller_display"] = seller_email.split("@")[0]
-                else:
-                    book_dict["seller_display"] = seller_email
-            else:
-                book_dict["seller_display"] = "未知"
-            
-            # 如果沒有封面圖片，使用預設圖片路徑
-            if not book_dict.get("front_image"):
-                book_dict["front_image"] = "static/images/user_cat01.png"
-            
+            # 處理書籍資料
+            book_dict = process_book_data(book_dict)
             books_list.append(book_dict)
         
-        # 如果沒有使用排序，在 Python 中排序（按建立時間降序）
-        if len(books_list) > 0 and "created_at" in books_list[0]:
-            try:
-                books_list.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-            except:
-                pass
+        # 按創建時間排序
+        books_list.sort(key=lambda x: x.get("created_at_timestamp", ""), reverse=True)
         
-        # 限制顯示數量
-        books_list = books_list[:20]
+        # 分頁
+        total = len(books_list)
+        paginated_books = books_list[offset:offset + page_size]
         
-        return render_template("index.html", books=books_list)
+        return jsonify({
+            "success": True,
+            "books": paginated_books,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "has_more": offset + page_size < total
+        })
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"錯誤：{e}")
-        # 如果發生錯誤，仍然顯示頁面，只是沒有書籍
-        return render_template("index.html", books=[])
+        print(f"獲取書籍時發生錯誤：{e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 處理書籍資料的輔助函數
+def process_book_data(book_dict):
+    """處理書籍資料，添加必要的欄位"""
+    # 處理時間戳記
+    if "created_at" in book_dict and book_dict["created_at"]:
+        try:
+            if hasattr(book_dict["created_at"], "strftime"):
+                book_dict["created_at"] = book_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+                book_dict["created_at_timestamp"] = book_dict["created_at"]
+            elif hasattr(book_dict["created_at"], "timestamp"):
+                from datetime import datetime
+                dt = book_dict["created_at"].to_datetime()
+                book_dict["created_at"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+                book_dict["created_at_timestamp"] = dt
+            else:
+                book_dict["created_at"] = str(book_dict["created_at"])
+                book_dict["created_at_timestamp"] = book_dict["created_at"]
+        except:
+            book_dict["created_at"] = str(book_dict["created_at"])
+            book_dict["created_at_timestamp"] = book_dict["created_at"]
+    else:
+        book_dict["created_at"] = ""
+        book_dict["created_at_timestamp"] = ""
+    
+    # 獲取評價資訊以顯示評分
+    evaluation_id = book_dict.get("evaluation_id", "")
+    if evaluation_id:
+        try:
+            eval_ref = db.collection("evaluations").document(evaluation_id)
+            eval_doc = eval_ref.get()
+            if eval_doc.exists:
+                eval_dict = eval_doc.to_dict()
+                book_dict["rating"] = eval_dict.get("rating", 0)
+            else:
+                book_dict["rating"] = 0
+        except:
+            book_dict["rating"] = 0
+    else:
+        book_dict["rating"] = 0
+    
+    # 處理賣家電子郵件顯示
+    seller_email = book_dict.get("seller_email", "")
+    if seller_email:
+        if "@" in seller_email:
+            book_dict["seller_display"] = seller_email.split("@")[0]
+        else:
+            book_dict["seller_display"] = seller_email
+    else:
+        book_dict["seller_display"] = "未知"
+    
+    # 如果沒有封面圖片，使用預設圖片路徑
+    if not book_dict.get("front_image"):
+        book_dict["front_image"] = "static/images/user_cat01.png"
+    
+    return book_dict
+
+# 收藏書籍
+@app.route("/api/favorite/<book_id>", methods=["POST"])
+def add_favorite(book_id):
+    if "user" not in session:
+        return jsonify({"success": False, "error": "未登入"}), 401
+    
+    try:
+        current_user = session["user"]
+        
+        # 檢查書籍是否存在
+        book_ref = db.collection("books").document(book_id)
+        book_doc = book_ref.get()
+        if not book_doc.exists:
+            return jsonify({"success": False, "error": "書籍不存在"}), 404
+        
+        # 檢查是否已經收藏
+        favorites_ref = db.collection("favorites")
+        favorites_query = favorites_ref.where("user_email", "==", current_user).where("book_id", "==", book_id).limit(1)
+        existing = list(favorites_query.stream())
+        
+        if existing:
+            return jsonify({"success": True, "message": "已經收藏"})
+        
+        # 添加收藏
+        favorite_data = {
+            "user_email": current_user,
+            "book_id": book_id,
+            "created_at": firestore.SERVER_TIMESTAMP
+        }
+        favorites_ref.add(favorite_data)
+        
+        return jsonify({"success": True, "message": "收藏成功"})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 取消收藏
+@app.route("/api/favorite/<book_id>", methods=["DELETE"])
+def remove_favorite(book_id):
+    if "user" not in session:
+        return jsonify({"success": False, "error": "未登入"}), 401
+    
+    try:
+        current_user = session["user"]
+        
+        # 查找並刪除收藏
+        favorites_ref = db.collection("favorites")
+        favorites_query = favorites_ref.where("user_email", "==", current_user).where("book_id", "==", book_id).limit(1)
+        favorites = list(favorites_query.stream())
+        
+        if favorites:
+            favorites[0].reference.delete()
+            return jsonify({"success": True, "message": "取消收藏成功"})
+        else:
+            return jsonify({"success": False, "error": "未找到收藏記錄"}), 404
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# 檢查是否已收藏
+@app.route("/api/favorite/<book_id>/check", methods=["GET"])
+def check_favorite(book_id):
+    if "user" not in session:
+        return jsonify({"success": False, "is_favorited": False}), 401
+    
+    try:
+        current_user = session["user"]
+        favorites_ref = db.collection("favorites")
+        favorites_query = favorites_ref.where("user_email", "==", current_user).where("book_id", "==", book_id).limit(1)
+        favorites = list(favorites_query.stream())
+        
+        return jsonify({"success": True, "is_favorited": len(favorites) > 0})
+    except Exception as e:
+        return jsonify({"success": False, "is_favorited": False}), 500
 
 
 # 註冊
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        email = request.form["std_num"] + "@mail.ntust.edu.tw"
-        password = request.form["password"]
-        password_check = request.form["password-check"]
+        std_num = request.form.get("std_num", "").strip()
+        password = request.form.get("password", "")
+        password_check = request.form.get("password-check", "")
+
+        # 驗證輸入
+        if not std_num:
+            return render_template("register.html", error="請輸入學號")
+        
+        if not password:
+            return render_template("register.html", error="請輸入密碼")
+        
+        if password != password_check:
+            return render_template("register.html", error="兩次輸入的密碼不一致")
+        
+        # 驗證密碼規則
+        if len(password) < 6:
+            return render_template("register.html", error="密碼長度至少6位")
+        
+        if not any(c.isupper() for c in password):
+            return render_template("register.html", error="密碼至少包含一個大寫字母")
+        
+        if not any(c.islower() for c in password):
+            return render_template("register.html", error="密碼至少包含一個小寫字母")
+
+        email = std_num + "@mail.ntust.edu.tw"
 
         try:
             # 創建 Firebase 使用者
             user = auth_firebase.create_user_with_email_and_password(email, password)
-            print(f"User created: {user['localId']}")
+            print(f"User created successfully: {user['localId']}")
+            print(f"User email: {email}")
+            print(f"User idToken exists: {'idToken' in user}")
 
             # 讓 Firebase 直接發送驗證信
-            auth_firebase.send_email_verification(user['idToken'])
-            print("Verification email sent!")
+            # 注意：send_email_verification 需要有效的 idToken
+            try:
+                if 'idToken' not in user:
+                    print("Warning: idToken not found in user object, attempting to sign in first...")
+                    # 如果沒有 idToken，先登入獲取
+                    user = auth_firebase.sign_in_with_email_and_password(email, password)
+                    print("User signed in successfully to get idToken")
+                
+                auth_firebase.send_email_verification(user['idToken'])
+                print(f"Verification email sent successfully to {email}!")
+            except Exception as email_error:
+                import traceback
+                error_msg = str(email_error)
+                print(f"Error sending verification email: {error_msg}")
+                traceback.print_exc()
+                
+                # 嘗試替代方法：先登入再發送驗證郵件
+                try:
+                    print("Attempting alternative method: sign in then send verification...")
+                    signed_in_user = auth_firebase.sign_in_with_email_and_password(email, password)
+                    auth_firebase.send_email_verification(signed_in_user['idToken'])
+                    print(f"Verification email sent via alternative method to {email}!")
+                except Exception as alt_error:
+                    print(f"Alternative method also failed: {alt_error}")
+                    # 即使發送郵件失敗，用戶已創建成功，所以仍然顯示成功訊息
+                    # 但可以提示用戶稍後手動請求驗證郵件
+                    return render_template("register.html", 
+                                         email=True, 
+                                         email_warning="帳號已創建，但驗證郵件發送可能失敗，請稍後在登入頁面重新發送驗證郵件。")
 
             return render_template("register.html", email=True)
         except Exception as e:
-            print(f"Error: {e}")
-            return render_template("register.html", error=True)
+            import traceback
+            error_msg = str(e)
+            print(f"Registration Error: {error_msg}")
+            traceback.print_exc()
+            
+            # 提供更詳細的錯誤訊息
+            if "EMAIL_EXISTS" in error_msg or "email-already-exists" in error_msg.lower():
+                return render_template("register.html", error="該學號已被註冊，請使用其他學號。")
+            elif "INVALID_EMAIL" in error_msg or "invalid-email" in error_msg.lower():
+                return render_template("register.html", error="電子郵件格式無效。")
+            elif "WEAK_PASSWORD" in error_msg or "weak-password" in error_msg.lower():
+                return render_template("register.html", error="密碼強度不足，請使用更強的密碼。")
+            else:
+                return render_template("register.html", error=f"註冊失敗：{error_msg}")
 
     return render_template("register.html")
 
@@ -178,7 +459,8 @@ def login():
             if not user_info['users'][0]['emailVerified']:
                 return render_template("login.html", no_email=True)
 
-            session["user"] = email
+            # 標準化 email（轉為小寫並去除空格，確保一致性）
+            session["user"] = email.strip().lower()
             return redirect("/")
         except Exception as e:
             error_msg = str(e)
@@ -250,31 +532,82 @@ def profile():
         # 調試輸出：顯示用戶資訊
         print(f"個人資料頁面：current_user={current_user}, view_user={view_user}, is_own_profile={is_own_profile}")
         
-        # 從 email 中提取學號作為顯示名稱
-        if "@" in view_user:
-            user_display = view_user.split("@")[0]
-        else:
-            user_display = view_user
+        # 從 Firestore 讀取用戶顯示名稱和頭像，如果不存在則使用 email 前綴和預設頭像
+        try:
+            user_ref = db.collection("users").document(view_user)
+            user_doc = user_ref.get()
+            
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                user_display = user_data.get("display_name", "")
+                user_avatar = user_data.get("avatar", "user_cat01.png")
+                if not user_display:
+                    # 如果沒有 display_name，使用 email 前綴
+                    if "@" in view_user:
+                        user_display = view_user.split("@")[0]
+                    else:
+                        user_display = view_user
+            else:
+                # 如果用戶資料不存在，使用 email 前綴和預設頭像
+                if "@" in view_user:
+                    user_display = view_user.split("@")[0]
+                else:
+                    user_display = view_user
+                user_avatar = "user_cat01.png"
+        except Exception as e:
+            print(f"讀取用戶顯示名稱時發生錯誤：{e}")
+            # 如果讀取失敗，使用 email 前綴和預設頭像
+            if "@" in view_user:
+                user_display = view_user.split("@")[0]
+            else:
+                user_display = view_user
+            user_avatar = "user_cat01.png"
         
         # 獲取用戶的書籍（提供的）
         books_ref = db.collection("books")
         provided_books = []
         
+        # 標準化 email（轉為小寫並去除空格，確保一致性）
+        view_user_normalized = view_user.strip().lower() if view_user else ""
+        
         try:
             # 使用簡單查詢（只查詢 seller_email），然後在 Python 中過濾和排序
             # 這樣可以避免需要 Firestore 索引
             try:
+                # 先嘗試精確匹配
                 books_query = books_ref.where("seller_email", "==", view_user).limit(100)
                 books = books_query.stream()
                 
+                # 同時也查詢標準化後的 email（以防資料庫中有不同格式）
+                books_query_normalized = books_ref.where("seller_email", "==", view_user_normalized).limit(100)
+                books_normalized = books_query_normalized.stream()
+                
+                # 合併兩個查詢結果，使用 set 避免重複
+                book_ids_seen = set()
+                
                 for book in books:
                     book_dict = book.to_dict()
-                    book_dict["id"] = book.id
+                    book_id = book.id
+                    
+                    # 跳過重複的書籍
+                    if book_id in book_ids_seen:
+                        continue
+                    book_ids_seen.add(book_id)
+                    
+                    book_dict["id"] = book_id
                     
                     # 過濾掉 status 不是 "available" 的記錄
                     status = book_dict.get("status", "available")
                     if status != "available":
                         continue
+                    
+                    # 標準化 seller_email 以確保匹配
+                    seller_email = book_dict.get("seller_email", "").strip().lower()
+                    if seller_email != view_user_normalized:
+                        # 如果標準化後不匹配，跳過（除非原始 email 匹配）
+                        original_seller_email = book_dict.get("seller_email", "").strip()
+                        if original_seller_email != view_user.strip():
+                            continue
                     
                     # 獲取評價資訊以顯示評分
                     evaluation_id = book_dict.get("evaluation_id", "")
@@ -540,6 +873,7 @@ def profile():
         return render_template("profile.html", 
                              user_display=user_display,
                              user_email=view_user,
+                             user_avatar=user_avatar if 'user_avatar' in locals() else "user_cat01.png",
                              is_own_profile=is_own_profile,
                              provided_books=provided_books,
                              needed_books=needed_books,
@@ -582,28 +916,95 @@ def edit_profile():
     if "user" not in session:
         return redirect("/login")
     
+    current_user = session["user"]
+    
     if request.method == "POST":
         try:
             # 獲取表單資料
             display_name = request.form.get("display_name", "").strip()
-            # TODO: 處理頭像上傳
+            avatar = request.form.get("avatar", "user_cat01.png").strip()
             
-            # 更新用戶資料到 Firestore（如果需要的話）
-            # 目前先簡單處理
-            return redirect("/profile")
+            # 驗證頭像選項
+            valid_avatars = ["user_cat01.png", "user_cat02.png", "user_female.png", "user_male.png"]
+            if avatar not in valid_avatars:
+                avatar = "user_cat01.png"
+            
+            if not display_name:
+                # 如果沒有輸入顯示名稱，使用 email 前綴
+                if "@" in current_user:
+                    display_name = current_user.split("@")[0]
+                else:
+                    display_name = current_user
+            
+            # 更新或創建用戶資料到 Firestore
+            user_ref = db.collection("users").document(current_user)
+            user_doc = user_ref.get()
+            
+            if user_doc.exists:
+                # 更新現有用戶資料
+                user_ref.update({
+                    "display_name": display_name,
+                    "avatar": avatar,
+                    "updated_at": firestore.SERVER_TIMESTAMP
+                })
+                print(f"更新用戶資料：{current_user}, display_name={display_name}, avatar={avatar}")
+            else:
+                # 創建新用戶資料
+                user_ref.set({
+                    "email": current_user,
+                    "display_name": display_name,
+                    "avatar": avatar,
+                    "created_at": firestore.SERVER_TIMESTAMP,
+                    "updated_at": firestore.SERVER_TIMESTAMP
+                })
+                print(f"創建用戶資料：{current_user}, display_name={display_name}, avatar={avatar}")
+            
+            return redirect("/profile?success=profile_updated")
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return render_template("edit_profile.html", error=str(e))
+            print(f"更新個人資料時發生錯誤：{e}")
+            return render_template("edit_profile.html", 
+                                 user_display=display_name if 'display_name' in locals() else (current_user.split("@")[0] if "@" in current_user else current_user), 
+                                 user_email=current_user,
+                                 error=f"更新失敗：{str(e)}")
     
-    # 獲取當前用戶資訊
-    current_user = session["user"]
-    if "@" in current_user:
-        user_display = current_user.split("@")[0]
-    else:
-        user_display = current_user
+    # GET 請求：獲取當前用戶資訊
+    try:
+        # 嘗試從 Firestore 讀取用戶資料
+        user_ref = db.collection("users").document(current_user)
+        user_doc = user_ref.get()
+        
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            user_display = user_data.get("display_name", "")
+            user_avatar = user_data.get("avatar", "user_cat01.png")
+            if not user_display:
+                # 如果沒有 display_name，使用 email 前綴
+                if "@" in current_user:
+                    user_display = current_user.split("@")[0]
+                else:
+                    user_display = current_user
+        else:
+            # 如果用戶資料不存在，使用 email 前綴和預設頭像
+            if "@" in current_user:
+                user_display = current_user.split("@")[0]
+            else:
+                user_display = current_user
+            user_avatar = "user_cat01.png"
+    except Exception as e:
+        print(f"讀取用戶資料時發生錯誤：{e}")
+        # 如果讀取失敗，使用 email 前綴和預設頭像
+        if "@" in current_user:
+            user_display = current_user.split("@")[0]
+        else:
+            user_display = current_user
+        user_avatar = "user_cat01.png"
     
-    return render_template("edit_profile.html", user_display=user_display, user_email=current_user)
+    return render_template("edit_profile.html", 
+                         user_display=user_display, 
+                         user_email=current_user,
+                         user_avatar=user_avatar if 'user_avatar' in locals() else "user_cat01.png")
 
 # 將 Firebase 錯誤訊息轉換為用戶友好的中文提示
 def get_friendly_error_message(error_msg):
@@ -862,154 +1263,485 @@ def book_detail(book_id):
         print(f"錯誤：{e}")
         return redirect("/?error=book_detail_error")
 
-# 搜尋功能
-@app.route("/search", methods=["GET"])
-def search():
+# Google Books 搜尋頁面（重定向到首頁）
+@app.route("/google_books_search", methods=["GET"])
+def google_books_search():
+    if "user" not in session:
+        return redirect("/login")
+    # 重定向到首頁，帶上搜尋參數
+    search_query = request.args.get("q", "").strip()
+    if search_query:
+        return redirect(f"/?q={search_query}")
+    else:
+        return redirect("/")
+
+# Google Books API 搜尋
+@app.route("/api/google_books/search", methods=["GET"])
+def search_google_books():
+    if "user" not in session:
+        return jsonify({"success": False, "error": "未登入"}), 401
+    
+    try:
+        query = request.args.get("q", "").strip()
+        if not query:
+            return jsonify({"success": False, "error": "請輸入搜尋關鍵字"}), 400
+        
+        # 檢測是否為 ISBN（移除所有非數字字元後檢查長度）
+        import re
+        isbn_clean = re.sub(r'[^0-9]', '', query)
+        is_isbn = False
+        
+        # ISBN-10 是 10 位數字，ISBN-13 是 13 位數字
+        if len(isbn_clean) == 10 or len(isbn_clean) == 13:
+            # 進一步驗證：ISBN-10 的第一位應該是 0-9，ISBN-13 的前三位應該是 978 或 979
+            if len(isbn_clean) == 10:
+                is_isbn = True
+            elif len(isbn_clean) == 13 and (isbn_clean.startswith('978') or isbn_clean.startswith('979')):
+                is_isbn = True
+        
+        # 呼叫 Google Books API
+        google_books_url = "https://www.googleapis.com/books/v1/volumes"
+        
+        # 如果是 ISBN，使用 isbn: 前綴；否則使用原始查詢
+        if is_isbn:
+            # 使用清理後的 ISBN（移除連字號和空格）
+            search_query = f"isbn:{isbn_clean}"
+            # ISBN 搜尋不受語言限制
+            params = {
+                "q": search_query,
+                "maxResults": 20
+            }
+        else:
+            params = {
+                "q": query,
+                "maxResults": 20,
+                "langRestrict": "zh-TW"  # 限制為繁體中文書籍
+            }
+        
+        response = requests.get(google_books_url, params=params)
+        
+        if response.status_code != 200:
+            return jsonify({"success": False, "error": "Google Books API 請求失敗"}), 500
+        
+        data = response.json()
+        books = []
+        
+        if "items" in data:
+            current_user = session["user"]
+            
+            for item in data["items"]:
+                volume_info = item.get("volumeInfo", {})
+                
+                # 提取書籍資訊
+                title = volume_info.get("title", "")
+                authors = volume_info.get("authors", [])
+                isbn_list = []
+                
+                # 提取 ISBN
+                industry_identifiers = volume_info.get("industryIdentifiers", [])
+                for identifier in industry_identifiers:
+                    isbn_type = identifier.get("type", "")
+                    isbn_value = identifier.get("identifier", "")
+                    if isbn_type in ["ISBN_13", "ISBN_10"]:
+                        isbn_list.append(isbn_value)
+                
+                # 提取封面圖片
+                image_links = volume_info.get("imageLinks", {})
+                thumbnail = image_links.get("thumbnail", "") or image_links.get("smallThumbnail", "")
+                if thumbnail:
+                    thumbnail = thumbnail.replace("http://", "https://")
+                
+                # 提取其他資訊
+                description = volume_info.get("description", "")
+                published_date = volume_info.get("publishedDate", "")
+                publisher = volume_info.get("publisher", "")
+                page_count = volume_info.get("pageCount", 0)
+                categories = volume_info.get("categories", [])
+                
+                google_id = item.get("id", "")
+                
+                # ============================================================
+                # 算法：計算有多少人提供這本書
+                # ============================================================
+                # 目標：在 Firestore 資料庫中找到與 Google Books 搜尋結果相同的書籍
+                # 並統計有多少不同的用戶提供這本書（排除當前用戶）
+                #
+                # 匹配策略（按優先級）：
+                # 1. ISBN 匹配（最準確，優先使用）
+                # 2. 書名相似度匹配 + 作者匹配
+                # 3. 書名完全匹配（即使沒有作者資訊）
+                #
+                # ============================================================
+                
+                provider_count = 0
+                try:
+                    books_ref = db.collection("books")
+                    if title or isbn_list:
+                        # 查詢所有狀態為 "available" 的書籍（最多 500 筆，提高覆蓋率）
+                        books_query = books_ref.where("status", "==", "available").limit(500)
+                        matching_books = books_query.stream()
+                        
+                        provider_ids = set()  # 使用 set 避免重複計算同一人
+                        
+                        # ============================================================
+                        # 函數 1：文字標準化（Text Normalization）
+                        # ============================================================
+                        # 使用共用的標準化函數以確保一致性
+                        # ============================================================
+                        def normalize_text(text):
+                            return normalize_text_for_matching(text)
+                        
+                        # ============================================================
+                        # 函數 2：計算字串相似度（String Similarity）
+                        # ============================================================
+                        # 使用共用的相似度計算函數以確保一致性
+                        # ============================================================
+                        def calculate_similarity(str1, str2):
+                            return calculate_similarity_for_matching(str1, str2)
+                        
+                        # ============================================================
+                        # 函數 3：ISBN 匹配（ISBN Matching）
+                        # ============================================================
+                        # 使用共用的 ISBN 匹配函數以確保一致性
+                        # ============================================================
+                        def match_isbn(isbn1, isbn2):
+                            return match_isbn_for_matching(isbn1, isbn2)
+                        
+                        # 標準化 Google Books 的書名和作者
+                        normalized_title = normalize_text(title) if title else ""
+                        normalized_authors = [normalize_text(author) for author in authors] if authors else []
+                        
+                        # ============================================================
+                        # 主匹配循環（Main Matching Loop）
+                        # ============================================================
+                        # 對資料庫中的每本書進行匹配檢查
+                        # ============================================================
+                        for book in matching_books:
+                            book_dict = book.to_dict()
+                            book_title = normalize_text(book_dict.get("title", ""))
+                            book_author = normalize_text(book_dict.get("author", ""))
+                            book_isbn = book_dict.get("isbn", "")
+                            
+                            # ============================================================
+                            # 階段 1：ISBN 匹配（最準確，優先檢查）
+                            # ============================================================
+                            isbn_match = False
+                            if isbn_list and book_isbn:
+                                for isbn in isbn_list:
+                                    if match_isbn(isbn, book_isbn):
+                                        isbn_match = True
+                                        break
+                            
+                            # 如果 ISBN 匹配，直接認為是同一本書（100% 確定）
+                            if isbn_match:
+                                seller_email = book_dict.get("seller_email", "")
+                                if seller_email and seller_email != current_user:
+                                    provider_ids.add(seller_email)
+                                continue  # 跳過後續檢查
+                            
+                            # ============================================================
+                            # 階段 2：書名相似度匹配
+                            # ============================================================
+                            title_similarity = 0.0
+                            if normalized_title and book_title:
+                                title_similarity = calculate_similarity(normalized_title, book_title)
+                            
+                            # 書名相似度閾值：0.70（70% 相似）
+                            # 降低閾值以匹配不同版本的同一本書（平裝/精裝）
+                            # 但會結合作者匹配來提高準確度
+                            title_match = title_similarity >= 0.70
+                            
+                            # ============================================================
+                            # 階段 3：作者匹配（改進版，處理多作者情況）
+                            # ============================================================
+                            author_match = False
+                            author_similarity_score = 0.0  # 記錄最高作者相似度
+                            
+                            if normalized_authors and book_author:
+                                for author in normalized_authors:
+                                    if author:
+                                        # 計算作者相似度
+                                        author_sim = calculate_similarity(author, book_author)
+                                        author_similarity_score = max(author_similarity_score, author_sim)
+                                        
+                                        # 作者匹配條件（多種方式）：
+                                        # 1. 相似度 >= 0.6（60% 相似）
+                                        # 2. 完全包含匹配（例如："安東尼" 匹配 "安東尼·聖修伯里"）
+                                        # 3. 部分匹配（處理多作者情況，如 "張三, 李四" 匹配 "張三"）
+                                        if author_sim >= 0.6:
+                                            author_match = True
+                                            break
+                                        
+                                        # 完全包含匹配
+                                        if author in book_author or book_author in author:
+                                            author_match = True
+                                            break
+                                        
+                                        # 處理多作者情況（用逗號分隔）
+                                        # 例如：book_author = "張三, 李四"，author = "張三"
+                                        if ',' in book_author:
+                                            authors_list = [a.strip() for a in book_author.split(',')]
+                                            if author in authors_list:
+                                                author_match = True
+                                                break
+                                        if ',' in author:
+                                            authors_list = [a.strip() for a in author.split(',')]
+                                            if book_author in authors_list:
+                                                author_match = True
+                                                break
+                            
+                            # ============================================================
+                            # 階段 4：綜合判斷（改進版，處理平裝/精裝版本）
+                            # ============================================================
+                            # 匹配條件（需滿足其一）：
+                            # 1. ISBN 匹配（已在階段 1 處理）
+                            # 2. 書名完全匹配（相似度 = 1.0）且（作者匹配或沒有作者資訊）
+                            # 3. 書名高度相似（相似度 >= 0.85）且作者匹配（嚴格匹配）
+                            # 4. 書名中等相似（相似度 >= 0.70）且作者完全匹配（處理平裝/精裝）
+                            # ============================================================
+                            is_same_book = False
+                            
+                            if title_similarity == 1.0:  # 書名完全匹配
+                                # 完全匹配時，即使沒有作者資訊也認為是同一本書
+                                if author_match or not normalized_authors:
+                                    is_same_book = True
+                            elif title_similarity >= 0.85:  # 書名高度相似（>= 85%）
+                                # 高度相似時，需要作者匹配
+                                if author_match:
+                                    is_same_book = True
+                            elif title_similarity >= 0.70:  # 書名中等相似（70-85%）
+                                # 中等相似時，需要更嚴格的作者匹配（處理平裝/精裝版本）
+                                # 檢查作者是否完全匹配或高度相似
+                                strict_author_match = False
+                                if normalized_authors and book_author:
+                                    for author in normalized_authors:
+                                        if author:
+                                            author_sim = calculate_similarity(author, book_author)
+                                            # 中等書名相似度時，要求更高的作者相似度（0.75）
+                                            if author_sim >= 0.75 or author == book_author or book_author == author:
+                                                strict_author_match = True
+                                                break
+                                
+                                if strict_author_match:
+                                    is_same_book = True
+                            
+                            if is_same_book:
+                                seller_email = book_dict.get("seller_email", "")
+                                if seller_email and seller_email != current_user:
+                                    provider_ids.add(seller_email)
+                        
+                        # 最終提供人數 = 不重複的提供者數量
+                        provider_count = len(provider_ids)
+                except Exception as e:
+                    print(f"查詢提供者數量時發生錯誤：{e}")
+                    import traceback
+                    traceback.print_exc()
+                    provider_count = 0
+                
+                books.append({
+                    "google_id": google_id,
+                    "title": title,
+                    "authors": authors,
+                    "isbn": isbn_list[0] if isbn_list else "",
+                    "isbn_list": isbn_list,
+                    "thumbnail": thumbnail,
+                    "description": description,
+                    "published_date": published_date,
+                    "publisher": publisher,
+                    "page_count": page_count,
+                    "categories": categories,
+                    "provider_count": provider_count
+                })
+        
+        # 按照提供人數從大到小排序，提供人數相同時保持 Google Books 的原始順序
+        # 使用穩定的排序，確保有人提供的書優先顯示
+        books.sort(key=lambda x: (
+            -x.get("provider_count", 0),  # 負數用於降序排序（提供人數多的在前）
+            x.get("title", "")  # 提供人數相同時，按書名排序（保持穩定性）
+        ))
+        
+        return jsonify({
+            "success": True,
+            "books": books,
+            "total": len(books)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"搜尋 Google Books 時發生錯誤：{e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Google Books 書籍詳情頁面
+@app.route("/google_book/<google_id>", methods=["GET"])
+def google_book_detail(google_id):
     if "user" not in session:
         return redirect("/login")
     
     try:
-        search_type = request.args.get("type", "books")  # books 或 wanted
-        search_query = request.args.get("q", "").strip()
+        # 從 URL 參數獲取書籍資訊
+        title = request.args.get("title", "")
+        authors = request.args.get("authors", "")
+        isbn = request.args.get("isbn", "")
+        search_query = request.args.get("search", "")  # 獲取搜尋關鍵字
         
-        if not search_query:
-            return redirect("/")
+        # 如果沒有提供，從 Google Books API 獲取
+        if not title:
+            google_books_url = f"https://www.googleapis.com/books/v1/volumes/{google_id}"
+            response = requests.get(google_books_url)
+            
+            if response.status_code == 200:
+                data = response.json()
+                volume_info = data.get("volumeInfo", {})
+                title = volume_info.get("title", "")
+                authors = volume_info.get("authors", [])
+                if isinstance(authors, list):
+                    authors = ", ".join(authors)
+                
+                industry_identifiers = volume_info.get("industryIdentifiers", [])
+                for identifier in industry_identifiers:
+                    if identifier.get("type") in ["ISBN_13", "ISBN_10"]:
+                        isbn = identifier.get("identifier", "")
+                        break
+            else:
+                return redirect("/?error=book_not_found")
         
+        # 查詢 Firestore 中提供這本書的所有用戶（使用與搜尋結果相同的匹配算法）
         current_user = session["user"]
-        books_list = []
-        wanted_books_list = []
+        books_ref = db.collection("books")
+        books_query = books_ref.where("status", "==", "available").limit(500)  # 增加查詢數量以匹配搜尋結果
+        books = books_query.stream()
         
-        if search_type == "books":
-            # 搜尋書籍
-            books_ref = db.collection("books")
+        # 處理 Google Books 的 ISBN 列表
+        google_isbn_list = []
+        if isbn:
+            google_isbn_list.append(isbn)
+        
+        # 如果從 Google Books API 獲取，提取所有 ISBN
+        if not google_isbn_list or len(google_isbn_list) == 0:
             try:
-                # 查詢所有狀態為 available 的書籍
-                books_query = books_ref.where("status", "==", "available").limit(100)
-                books = books_query.stream()
+                google_books_url_temp = f"https://www.googleapis.com/books/v1/volumes/{google_id}"
+                response_temp = requests.get(google_books_url_temp)
+                if response_temp.status_code == 200:
+                    data_temp = response_temp.json()
+                    volume_info_temp = data_temp.get("volumeInfo", {})
+                    industry_identifiers = volume_info_temp.get("industryIdentifiers", [])
+                    for identifier in industry_identifiers:
+                        if identifier.get("type") in ["ISBN_13", "ISBN_10"]:
+                            google_isbn_list.append(identifier.get("identifier", ""))
             except:
-                books_query = books_ref.where("status", "==", "available").limit(100)
-                books = books_query.stream()
-            
-            for book in books:
-                book_dict = book.to_dict()
-                book_dict["id"] = book.id
-                
-                # 過濾掉當前用戶的書籍
-                seller_email = book_dict.get("seller_email", "")
-                if seller_email == current_user:
-                    continue
-                
-                # 根據搜尋關鍵字過濾（書名、作者、ISBN）
-                title = book_dict.get("title", "").lower()
-                author = book_dict.get("author", "").lower()
-                isbn = book_dict.get("isbn", "").lower()
-                search_lower = search_query.lower()
-                
-                if search_lower in title or search_lower in author or search_lower in isbn:
-                    # 處理時間戳記
-                    if "created_at" in book_dict and book_dict["created_at"]:
-                        try:
-                            if hasattr(book_dict["created_at"], "strftime"):
-                                book_dict["created_at"] = book_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")
-                            else:
-                                book_dict["created_at"] = str(book_dict["created_at"])
-                        except:
-                            book_dict["created_at"] = str(book_dict["created_at"])
-                    
-                    # 獲取評價資訊以顯示評分
-                    evaluation_id = book_dict.get("evaluation_id", "")
-                    if evaluation_id:
-                        try:
-                            eval_ref = db.collection("evaluations").document(evaluation_id)
-                            eval_doc = eval_ref.get()
-                            if eval_doc.exists:
-                                eval_dict = eval_doc.to_dict()
-                                book_dict["rating"] = eval_dict.get("rating", 0)
-                            else:
-                                book_dict["rating"] = 0
-                        except:
-                            book_dict["rating"] = 0
-                    else:
-                        book_dict["rating"] = 0
-                    
-                    # 處理賣家電子郵件顯示
-                    if seller_email:
-                        if "@" in seller_email:
-                            book_dict["seller_display"] = seller_email.split("@")[0]
-                        else:
-                            book_dict["seller_display"] = seller_email
-                    else:
-                        book_dict["seller_display"] = "未知"
-                    
-                    # 處理圖片
-                    if not book_dict.get("front_image"):
-                        book_dict["front_image"] = "static/images/user_cat01.png"
-                    
-                    books_list.append(book_dict)
+                pass
         
-        elif search_type == "wanted":
-            # 搜尋「我想要書」的需求
-            wanted_books_ref = db.collection("wanted_books")
-            try:
-                # 不再使用 status 過濾，直接查詢所有記錄
-                wanted_books_query = wanted_books_ref.limit(100)
-                wanted_books = wanted_books_query.stream()
-            except Exception as query_error:
-                print(f"查詢「我想要書」時發生錯誤：{query_error}")
-                wanted_books = []
-            
-            for wanted_book in wanted_books:
-                wanted_dict = wanted_book.to_dict()
-                wanted_dict["id"] = wanted_book.id
-                
-                # 過濾掉已刪除的記錄（向後兼容舊資料）
-                status = wanted_dict.get("status")
-                if status == "deleted":
-                    continue
-                
-                # 根據搜尋關鍵字過濾（書名、作者、ISBN）
-                title = wanted_dict.get("book_title", "").lower()
-                author = wanted_dict.get("author", "").lower()
-                isbn = wanted_dict.get("isbn", "").lower()
-                search_lower = search_query.lower()
-                
-                if search_lower in title or search_lower in author or search_lower in isbn:
-                    # 處理時間戳記
-                    if "created_at" in wanted_dict and wanted_dict["created_at"]:
-                        try:
-                            if hasattr(wanted_dict["created_at"], "strftime"):
-                                wanted_dict["created_at"] = wanted_dict["created_at"].strftime("%Y-%m-%d")
-                            else:
-                                wanted_dict["created_at"] = str(wanted_dict["created_at"])[:10]
-                        except:
-                            wanted_dict["created_at"] = str(wanted_dict["created_at"])[:10] if wanted_dict["created_at"] else ""
-                    
-                    # 處理需求者電子郵件顯示
-                    requester_email = wanted_dict.get("requester_email", "")
-                    if requester_email:
-                        if "@" in requester_email:
-                            wanted_dict["requester_display"] = requester_email.split("@")[0]
-                        else:
-                            wanted_dict["requester_display"] = requester_email
-                    else:
-                        wanted_dict["requester_display"] = "未知"
-                    
-                    wanted_books_list.append(wanted_dict)
+        # 處理作者列表
+        google_authors = []
+        if authors:
+            if isinstance(authors, str):
+                google_authors = [a.strip() for a in authors.split(",")]
+            elif isinstance(authors, list):
+                google_authors = authors
         
-        return render_template("search_results.html", 
-                             search_type=search_type,
-                             search_query=search_query,
-                             books=books_list,
-                             wanted_books=wanted_books_list)
+        providers = []
+        provider_ids = set()  # 使用 set 避免重複計算同一人
+        
+        for book in books:
+            book_dict = book.to_dict()
+            book_id = book.id
+            book_title = book_dict.get("title", "")
+            book_author = book_dict.get("author", "")
+            book_isbn = book_dict.get("isbn", "")
+            seller_email = book_dict.get("seller_email", "")
+            
+            # 跳過當前用戶的書籍
+            if seller_email == current_user:
+                continue
+            
+            # 使用與搜尋結果相同的匹配算法
+            if is_same_book(title, google_authors, google_isbn_list, book_title, book_author, book_isbn):
+                # 避免重複計算同一提供者
+                if seller_email not in provider_ids:
+                    provider_ids.add(seller_email)
+                    
+                    # 處理書籍資料
+                    book_dict = process_book_data(book_dict)
+                    book_dict["id"] = book_id
+                    
+                    # 獲取賣家顯示名稱
+                    try:
+                        user_ref = db.collection("users").document(seller_email)
+                        user_doc = user_ref.get()
+                        if user_doc.exists:
+                            user_data = user_doc.to_dict()
+                            book_dict["seller_display"] = user_data.get("display_name", seller_email.split("@")[0] if "@" in seller_email else seller_email)
+                        else:
+                            book_dict["seller_display"] = seller_email.split("@")[0] if "@" in seller_email else seller_email
+                    except:
+                        book_dict["seller_display"] = seller_email.split("@")[0] if "@" in seller_email else seller_email
+                    
+                    providers.append(book_dict)
+        
+        # 按創建時間排序
+        providers.sort(key=lambda x: x.get("created_at_timestamp", ""), reverse=True)
+        
+        # 從 Google Books API 獲取詳細資訊
+        google_books_url = f"https://www.googleapis.com/books/v1/volumes/{google_id}"
+        response = requests.get(google_books_url)
+        book_details = {}
+        
+        if response.status_code == 200:
+            data = response.json()
+            volume_info = data.get("volumeInfo", {})
+            
+            image_links = volume_info.get("imageLinks", {})
+            thumbnail = image_links.get("thumbnail", "") or image_links.get("smallThumbnail", "")
+            if thumbnail:
+                thumbnail = thumbnail.replace("http://", "https://")
+            
+            book_details = {
+                "title": volume_info.get("title", title),
+                "authors": volume_info.get("authors", [authors.split(",")] if authors else []),
+                "description": volume_info.get("description", ""),
+                "published_date": volume_info.get("publishedDate", ""),
+                "publisher": volume_info.get("publisher", ""),
+                "page_count": volume_info.get("pageCount", 0),
+                "categories": volume_info.get("categories", []),
+                "thumbnail": thumbnail,
+                "language": volume_info.get("language", ""),
+                "preview_link": volume_info.get("previewLink", ""),
+                "info_link": volume_info.get("infoLink", "")
+            }
+            
+            # 提取 ISBN
+            industry_identifiers = volume_info.get("industryIdentifiers", [])
+            isbn_list = []
+            for identifier in industry_identifiers:
+                if identifier.get("type") in ["ISBN_13", "ISBN_10"]:
+                    isbn_list.append(identifier.get("identifier", ""))
+            book_details["isbn"] = isbn_list[0] if isbn_list else isbn
+            book_details["isbn_list"] = isbn_list
+        
+        return render_template("google_book_detail.html", 
+                             book_details=book_details,
+                             providers=providers,
+                             google_id=google_id,
+                             search_query=search_query)
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"錯誤：{e}")
-        return render_template("search_results.html", 
-                             search_type=search_type if 'search_type' in locals() else "books",
-                             search_query=search_query if 'search_query' in locals() else "",
-                             books=[],
-                             wanted_books=[])
+        print(f"獲取 Google Books 詳情時發生錯誤：{e}")
+        return redirect("/?error=detail_error")
+
+# 搜尋功能
+@app.route("/search", methods=["GET"])
+def search():
+    """將舊的搜尋路由重定向到 Google Books 搜尋"""
+    if "user" not in session:
+        return redirect("/login")
+    
+    # 獲取搜尋關鍵字並重定向到 Google Books 搜尋
+    search_query = request.args.get("q", "").strip()
+    if search_query:
+        return redirect(f"/google_books_search?q={search_query}")
+    else:
+        return redirect("/google_books_search")
 
 # 我想要書
 @app.route("/wanted_book", methods=["GET", "POST"])
@@ -1169,12 +1901,31 @@ def edit_book(book_id):
                     "remarks": remarks,
                 }
                 
-                # 處理圖片上傳（如果有的話）
+                # 處理圖片上傳到 Firebase Storage
                 front_image = request.files.get("front_image")
                 back_image = request.files.get("back_image")
                 
-                # TODO: 實作圖片上傳到 Firebase Storage
-                # 目前先跳過圖片更新
+                # 上傳封面圖片（如果有新圖片）
+                if front_image and front_image.filename:
+                    try:
+                        front_image_url = upload_image_to_firebase_storage(front_image, session["user"], "front")
+                        update_data["front_image"] = front_image_url
+                        print(f"✓ 封面圖片已更新: {front_image_url}")
+                    except Exception as e:
+                        print(f"❌ 上傳封面圖片失敗: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                # 上傳封底圖片（如果有新圖片）
+                if back_image and back_image.filename:
+                    try:
+                        back_image_url = upload_image_to_firebase_storage(back_image, session["user"], "back")
+                        update_data["back_image"] = back_image_url
+                        print(f"✓ 封底圖片已更新: {back_image_url}")
+                    except Exception as e:
+                        print(f"❌ 上傳封底圖片失敗: {e}")
+                        import traceback
+                        traceback.print_exc()
                 
                 book_ref.update(update_data)
                 
@@ -1470,15 +2221,32 @@ def add_book():
             if not review_content:
                 return render_template("add_book.html", error="請輸入詳細內容。")
             
-            # 處理圖片上傳（目前先存儲路徑，實際圖片上傳功能需要 Firebase Storage）
+            # 處理圖片上傳到 Firebase Storage
             front_image = request.files.get("front_image")
             back_image = request.files.get("back_image")
             
             front_image_url = ""
             back_image_url = ""
             
-            # TODO: 實作圖片上傳到 Firebase Storage
-            # 目前先跳過圖片上傳，專注於資料結構
+            # 上傳封面圖片
+            if front_image and front_image.filename:
+                try:
+                    front_image_url = upload_image_to_firebase_storage(front_image, session["user"], "front")
+                    print(f"✓ 封面圖片已上傳: {front_image_url}")
+                except Exception as e:
+                    print(f"❌ 上傳封面圖片失敗: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # 上傳封底圖片
+            if back_image and back_image.filename:
+                try:
+                    back_image_url = upload_image_to_firebase_storage(back_image, session["user"], "back")
+                    print(f"✓ 封底圖片已上傳: {back_image_url}")
+                except Exception as e:
+                    print(f"❌ 上傳封底圖片失敗: {e}")
+                    import traceback
+                    traceback.print_exc()
             
             # 創建書籍資料
             book_data = {
@@ -1490,7 +2258,7 @@ def add_book():
                 "remarks": remarks,
                 "front_image": front_image_url,
                 "back_image": back_image_url,
-                "seller_email": session["user"],
+                "seller_email": session["user"].strip().lower(),  # 標準化 email 格式
                 "created_at": firestore.SERVER_TIMESTAMP,
                 "status": "available"
             }
@@ -1631,5 +2399,293 @@ def test_evaluations():
 
 #     return jsonify({"message": "訊息已送出"}), 200
 
+# ============================================================
+# 書籍匹配算法（共用函數）
+# ============================================================
+
+def normalize_text_for_matching(text):
+    """
+    文字標準化（用於書籍匹配）
+    移除版本相關詞彙，統一格式
+    """
+    if not text:
+        return ""
+    import re
+    # 轉為小寫
+    text = text.lower()
+    
+    # 移除版本相關詞彙（這些詞不會影響書籍的實質內容）
+    version_keywords = [
+        r'平裝', r'精裝', r'新版', r'修訂版', r'增訂版', r'再版',
+        r'初版', r'二版', r'三版', r'第\d+版', r'第\d+刷',
+        r'paperback', r'hardcover', r'hardback', r'精裝版', r'平裝版',
+        r'新版', r'新版本', r'修訂', r'增訂', r'再版', r'初版',
+        r'vol\.?\d+', r'volume\s+\d+', r'第\d+卷', r'第\d+冊'
+    ]
+    for keyword in version_keywords:
+        text = re.sub(keyword, '', text, flags=re.IGNORECASE)
+    
+    # 移除標點符號和特殊字元，只保留中文、英文、數字和空格
+    text = re.sub(r'[^\w\s\u4e00-\u9fff]', '', text)
+    # 將多個空格合併為一個
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+def calculate_similarity_for_matching(str1, str2):
+    """
+    計算字串相似度（用於書籍匹配）
+    使用 Jaccard 相似度 + 字元序列匹配
+    """
+    if not str1 or not str2:
+        return 0.0
+    
+    # 完全匹配
+    if str1 == str2:
+        return 1.0
+    
+    # 計算 Jaccard 相似度（基於字元集合）
+    set1 = set(str1)
+    set2 = set(str2)
+    intersection = len(set1 & set2)
+    union = len(set1 | set2)
+    jaccard = intersection / union if union > 0 else 0.0
+    
+    # 計算最長公共子串長度比例
+    def longest_common_substring(s1, s2):
+        m, n = len(s1), len(s2)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        max_len = 0
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if s1[i-1] == s2[j-1]:
+                    dp[i][j] = dp[i-1][j-1] + 1
+                    max_len = max(max_len, dp[i][j])
+        return max_len
+    
+    lcs_len = longest_common_substring(str1, str2)
+    min_len = min(len(str1), len(str2))
+    lcs_ratio = lcs_len / min_len if min_len > 0 else 0.0
+    
+    # 包含匹配（一個字串完全包含在另一個中）
+    contains_ratio = 0.0
+    if str1 in str2:
+        contains_ratio = len(str1) / len(str2)
+    elif str2 in str1:
+        contains_ratio = len(str2) / len(str1)
+    
+    # 綜合相似度：加權平均
+    similarity = (jaccard * 0.4) + (lcs_ratio * 0.4) + (contains_ratio * 0.2)
+    
+    return similarity
+
+def match_isbn_for_matching(isbn1, isbn2):
+    """
+    ISBN 匹配（處理 ISBN-10 和 ISBN-13 的轉換）
+    """
+    if not isbn1 or not isbn2:
+        return False
+    
+    # 清理 ISBN（移除連字號和空格）
+    clean1 = isbn1.replace("-", "").replace(" ", "").lower()
+    clean2 = isbn2.replace("-", "").replace(" ", "").lower()
+    
+    # 完全匹配
+    if clean1 == clean2:
+        return True
+    
+    # ISBN-13 轉 ISBN-10 匹配
+    if len(clean1) == 13 and len(clean2) == 10:
+        if clean1.startswith('978') or clean1.startswith('979'):
+            if clean1[3:] == clean2:
+                return True
+    
+    if len(clean1) == 10 and len(clean2) == 13:
+        if clean2.startswith('978') or clean2.startswith('979'):
+            if clean2[3:] == clean1:
+                return True
+    
+    return False
+
+def is_same_book(google_title, google_authors, google_isbn_list, book_title, book_author, book_isbn):
+    """
+    判斷兩本書是否為同一本書（使用與搜尋結果相同的算法）
+    
+    參數:
+        google_title: Google Books 的書名
+        google_authors: Google Books 的作者列表
+        google_isbn_list: Google Books 的 ISBN 列表
+        book_title: 資料庫中的書名
+        book_author: 資料庫中的作者
+        book_isbn: 資料庫中的 ISBN
+    
+    返回:
+        True 如果匹配，False 如果不匹配
+    """
+    # 標準化文字
+    normalized_title = normalize_text_for_matching(google_title) if google_title else ""
+    normalized_authors = [normalize_text_for_matching(author) for author in google_authors] if google_authors else []
+    book_title_norm = normalize_text_for_matching(book_title) if book_title else ""
+    book_author_norm = normalize_text_for_matching(book_author) if book_author else ""
+    
+    # 階段 1：ISBN 匹配（最準確，優先檢查）
+    if google_isbn_list and book_isbn:
+        for isbn in google_isbn_list:
+            if match_isbn_for_matching(isbn, book_isbn):
+                return True
+    
+    # 階段 2：書名相似度匹配
+    title_similarity = 0.0
+    if normalized_title and book_title_norm:
+        title_similarity = calculate_similarity_for_matching(normalized_title, book_title_norm)
+    
+    # 階段 3：作者匹配
+    author_match = False
+    if normalized_authors and book_author_norm:
+        for author in normalized_authors:
+            if author:
+                author_sim = calculate_similarity_for_matching(author, book_author_norm)
+                if author_sim >= 0.6:
+                    author_match = True
+                    break
+                # 完全包含匹配
+                if author in book_author_norm or book_author_norm in author:
+                    author_match = True
+                    break
+                # 處理多作者情況
+                if ',' in book_author_norm:
+                    authors_list = [a.strip() for a in book_author_norm.split(',')]
+                    if author in authors_list:
+                        author_match = True
+                        break
+                if ',' in author:
+                    authors_list = [a.strip() for a in author.split(',')]
+                    if book_author_norm in authors_list:
+                        author_match = True
+                        break
+    
+    # 階段 4：綜合判斷
+    if title_similarity == 1.0:  # 書名完全匹配
+        if author_match or not normalized_authors:
+            return True
+    elif title_similarity >= 0.85:  # 書名高度相似（>= 85%）
+        if author_match:
+            return True
+    elif title_similarity >= 0.70:  # 書名中等相似（70-85%）
+        # 需要更嚴格的作者匹配
+        if normalized_authors and book_author_norm:
+            for author in normalized_authors:
+                if author:
+                    author_sim = calculate_similarity_for_matching(author, book_author_norm)
+                    if author_sim >= 0.75 or author == book_author_norm or book_author_norm == author:
+                        return True
+    
+    return False
+
+# ============================================================
+# Firebase Storage 圖片上傳功能
+# ============================================================
+
+def compress_image(image_file, max_size=(1200, 1600), quality=85):
+    """
+    壓縮圖片以節省流量
+    參數:
+        image_file: Flask 的 FileStorage 對象
+        max_size: 最大尺寸 (width, height)，預設 1200x1600
+        quality: JPEG 品質 (1-100)，預設 85
+    返回:
+        壓縮後的圖片 bytes
+    """
+    try:
+        # 讀取原始圖片
+        image = Image.open(image_file)
+        
+        # 轉換為 RGB（如果是 RGBA 或其他格式）
+        if image.mode in ('RGBA', 'LA', 'P'):
+            # 創建白色背景
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            if image.mode == 'P':
+                image = image.convert('RGBA')
+            background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+            image = background
+        elif image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # 計算縮放比例，保持長寬比
+        width, height = image.size
+        max_width, max_height = max_size
+        
+        if width > max_width or height > max_height:
+            # 計算縮放比例
+            ratio = min(max_width / width, max_height / height)
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # 將圖片轉換為 bytes
+        output = io.BytesIO()
+        image.save(output, format='JPEG', quality=quality, optimize=True)
+        output.seek(0)
+        
+        return output.getvalue()
+    except Exception as e:
+        print(f"壓縮圖片時發生錯誤: {e}")
+        import traceback
+        traceback.print_exc()
+        # 如果壓縮失敗，返回原始圖片
+        image_file.seek(0)
+        return image_file.read()
+
+def upload_image_to_firebase_storage(image_file, user_email, image_type="front"):
+    """
+    上傳圖片到 Firebase Storage
+    參數:
+        image_file: Flask 的 FileStorage 對象
+        user_email: 用戶 email
+        image_type: 圖片類型 ("front" 或 "back")
+    返回:
+        圖片的公開 URL
+    """
+    try:
+        # 獲取 Firebase Storage bucket（使用配置中的 bucket 名稱）
+        bucket_name = "book-exchange-d4351.firebasestorage.app"
+        bucket = storage.bucket(bucket_name)
+        
+        # 生成唯一檔名
+        file_extension = os.path.splitext(image_file.filename)[1] if image_file.filename else '.jpg'
+        if not file_extension or file_extension.lower() not in ['.jpg', '.jpeg', '.png', '.webp']:
+            file_extension = '.jpg'
+        
+        # 使用用戶 email 和時間戳生成唯一檔名
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_email = user_email.replace('@', '_at_').replace('.', '_')
+        filename = f"books/{safe_email}/{timestamp}_{image_type}{file_extension}"
+        
+        # 壓縮圖片
+        compressed_image = compress_image(image_file)
+        
+        # 創建 blob（Firebase Storage 的文件對象）
+        blob = bucket.blob(filename)
+        
+        # 設置內容類型
+        blob.content_type = 'image/jpeg'
+        
+        # 上傳圖片（使用壓縮後的數據）
+        blob.upload_from_string(compressed_image, content_type='image/jpeg')
+        
+        # 設置為公開讀取（這樣才能在前端顯示）
+        blob.make_public()
+        
+        # 返回公開 URL
+        return blob.public_url
+        
+    except Exception as e:
+        print(f"上傳圖片到 Firebase Storage 時發生錯誤: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 允許從其他設備訪問（手機測試）
+    # host='0.0.0.0' 表示監聽所有網路介面
+    # 在手機瀏覽器中訪問: http://你的電腦IP:5000
+    app.run(host='0.0.0.0', port=5000, debug=True)

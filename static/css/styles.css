@@ -71,7 +71,6 @@ body {
 .search-input {
     flex: 1;
     border: none;
-    border-left: 1px solid var(--secondary-beige);
     border-right: 1px solid var(--secondary-beige);
     padding: 8px 12px;
     background-color: white;
@@ -227,8 +226,10 @@ body {
 .book-post {
     background-color: white;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    gap: 15px;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -238,37 +239,13 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.book-post-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    border-bottom: 1px solid var(--secondary-beige);
-}
-
-.book-post-user {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
-    color: var(--text-dark);
-}
-
-.book-post-user i {
-    font-size: 20px;
-    color: var(--brown);
-}
-
-.book-post-date {
-    font-size: 12px;
-    color: var(--light-brown);
-}
-
 .book-post-image {
-    width: 100%;
-    aspect-ratio: 1;
+    flex-shrink: 0;
+    width: 100px;
+    height: 140px;
+    border-radius: 8px;
     overflow: hidden;
-    background-color: var(--primary-beige);
+    background-color: var(--secondary-beige);
 }
 
 .book-post-image img {
@@ -277,8 +254,45 @@ body {
     object-fit: cover;
 }
 
+.book-post-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0; /* 防止內容溢出 */
+}
+
+.book-post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.book-post-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: var(--text-dark);
+    font-size: 14px;
+}
+
+.book-post-user i {
+    font-size: 16px;
+    color: var(--brown);
+}
+
+.book-post-date {
+    font-size: 12px;
+    color: var(--light-brown);
+}
+
 .book-post-content {
-    padding: 15px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .book-post-content .book-title {
@@ -306,7 +320,8 @@ body {
 .book-post-actions {
     display: flex;
     gap: 15px;
-    padding: 12px 15px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px solid var(--secondary-beige);
 }
 
@@ -1399,16 +1414,25 @@ select.form-control {
 
 .image-preview {
     width: 100%;
-    height: 100%;
+    min-height: 200px;
+    aspect-ratio: 3/4;
     display: flex;
     align-items: center;
     justify-content: center;
+    border: 2px dashed var(--secondary-beige);
+    border-radius: 8px;
+    background-color: var(--primary-beige);
+    margin-top: 10px;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 .image-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     border-radius: 6px;
 }
 
@@ -1417,6 +1441,394 @@ select.form-control {
     font-size: 12px;
     color: var(--light-brown);
     text-align: center;
+}
+
+/* 相機控制按鈕 */
+.camera-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.camera-btn, .scan-isbn-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.camera-btn:hover, .scan-isbn-btn:hover {
+    background-color: var(--dark-brown);
+}
+
+.camera-btn:active, .scan-isbn-btn:active {
+    transform: scale(0.98);
+}
+
+.scan-isbn-btn {
+    background-color: var(--light-brown);
+}
+
+.scan-isbn-btn:hover {
+    background-color: var(--brown);
+}
+
+/* 相機容器 */
+.camera-container {
+    width: 100%;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: visible;
+    background-color: #000;
+    position: relative;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.camera-container video {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 500px;
+    min-height: 300px;
+    object-fit: contain;
+    background-color: #000;
+    flex: 1;
+}
+
+/* 相機操作按鈕 */
+.camera-actions {
+    display: flex;
+    gap: 10px;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.9);
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    border-radius: 0 0 8px 8px;
+}
+
+.capture-btn, .cancel-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.capture-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.capture-btn:hover {
+    background-color: #45a049;
+}
+
+.cancel-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #da190b;
+}
+
+.capture-btn:active, .cancel-btn:active {
+    transform: scale(0.95);
+}
+
+/* 相機權限提示 */
+.camera-permission-prompt {
+    background: linear-gradient(135deg, var(--brown) 0%, var(--dark-brown) 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.permission-prompt-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 15px;
+}
+
+.permission-prompt-content i {
+    font-size: 48px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 10px;
+}
+
+.permission-prompt-content h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.permission-prompt-content p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+    line-height: 1.5;
+}
+
+.permission-btn {
+    padding: 12px 24px;
+    background-color: white;
+    color: var(--brown);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.permission-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.permission-btn:active {
+    transform: translateY(0);
+}
+
+.permission-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 相機權限訊息 */
+.camera-permission-message {
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    position: relative;
+}
+
+.camera-permission-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.camera-permission-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.camera-permission-message i {
+    font-size: 18px;
+}
+
+.camera-permission-message .message-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 5px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.camera-permission-message .message-close:hover {
+    opacity: 1;
+}
+
+/* ISBN 輸入組 */
+.isbn-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.isbn-input-group .form-control {
+    flex: 1;
+}
+
+.scan-isbn-quick-btn {
+    padding: 12px 20px;
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.scan-isbn-quick-btn:hover {
+    background-color: var(--dark-brown);
+}
+
+.scan-isbn-quick-btn:active {
+    transform: scale(0.98);
+}
+
+.isbn-hint {
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--light-brown);
+    font-style: italic;
+}
+
+/* ISBN 掃描器模態框 */
+.isbn-scanner-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.isbn-scanner-content {
+    background-color: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.isbn-scanner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--secondary-beige);
+}
+
+.isbn-scanner-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-dark);
+}
+
+.scanner-close-btn {
+    background: none;
+    border: none;
+    color: var(--brown);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.2s;
+}
+
+.scanner-close-btn:hover {
+    color: var(--dark-brown);
+}
+
+.isbn-scanner-body {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* 書籍資訊載入和訊息 */
+.book-info-loading {
+    padding: 10px;
+    background-color: var(--primary-beige);
+    border-radius: 8px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--brown);
+    font-size: 14px;
+}
+
+.book-info-message {
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    position: relative;
+}
+
+.book-info-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.book-info-message.warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.book-info-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.book-info-message i {
+    font-size: 18px;
+}
+
+.book-info-message .message-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 5px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.book-info-message .message-close:hover {
+    opacity: 1;
 }
 
 .image-instruction {

@@ -19,18 +19,33 @@
     </div>
     {% endif %}
 
-    <form method="POST" action="/edit_profile" enctype="multipart/form-data">
+    <form method="POST" action="/edit_profile">
         <div class="form-section">
-            <!-- 頭像上傳 -->
+            <!-- 頭像選擇 -->
             <div class="form-group">
                 <label>頭像:</label>
-                <div class="avatar-upload-container">
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="頭像" class="avatar-preview" id="avatarPreview">
-                    <label for="avatar" class="avatar-upload-btn">
-                        <i class="fas fa-camera"></i>
-                        <span>更換頭像</span>
-                    </label>
-                    <input type="file" id="avatar" name="avatar" accept="image/*" class="image-input" onchange="previewAvatar(this)">
+                <div class="avatar-selection-container">
+                    <div class="avatar-preview-large">
+                        <img src="{{ url_for('static', filename='images/' + (user_avatar if user_avatar else 'user_cat01.png')) }}" alt="頭像預覽" class="avatar-preview" id="avatarPreview">
+                    </div>
+                    <div class="avatar-options">
+                        <label class="avatar-option">
+                            <input type="radio" name="avatar" value="user_cat01.png" {{ 'checked' if (user_avatar == 'user_cat01.png' or not user_avatar) else '' }}>
+                            <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="頭像1" class="avatar-thumbnail">
+                        </label>
+                        <label class="avatar-option">
+                            <input type="radio" name="avatar" value="user_cat02.png" {{ 'checked' if user_avatar == 'user_cat02.png' else '' }}>
+                            <img src="{{ url_for('static', filename='images/user_cat02.png') }}" alt="頭像2" class="avatar-thumbnail">
+                        </label>
+                        <label class="avatar-option">
+                            <input type="radio" name="avatar" value="user_female.png" {{ 'checked' if user_avatar == 'user_female.png' else '' }}>
+                            <img src="{{ url_for('static', filename='images/user_female.png') }}" alt="頭像3" class="avatar-thumbnail">
+                        </label>
+                        <label class="avatar-option">
+                            <input type="radio" name="avatar" value="user_male.png" {{ 'checked' if user_avatar == 'user_male.png' else '' }}>
+                            <img src="{{ url_for('static', filename='images/user_male.png') }}" alt="頭像4" class="avatar-thumbnail">
+                        </label>
+                    </div>
                 </div>
             </div>
             
@@ -54,18 +69,29 @@
 </div>
 
 <script>
-function previewAvatar(input) {
+document.addEventListener("DOMContentLoaded", function() {
+    const avatarInputs = document.querySelectorAll('input[name="avatar"]');
     const preview = document.getElementById('avatarPreview');
-    const file = input.files[0];
+    const basePath = '{{ url_for("static", filename="images/") }}';
     
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-}
+    avatarInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (this.checked) {
+                preview.src = basePath + this.value;
+                // 更新選中狀態的視覺效果
+                document.querySelectorAll('.avatar-option').forEach(option => {
+                    option.style.borderColor = 'transparent';
+                });
+                this.closest('.avatar-option').style.borderColor = '#8B7355';
+            }
+        });
+        
+        // 初始化選中狀態
+        if (input.checked) {
+            input.closest('.avatar-option').style.borderColor = '#8B7355';
+        }
+    });
+});
 </script>
 {% endblock %}
 

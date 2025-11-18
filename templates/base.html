@@ -47,8 +47,16 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- ZXing 條碼掃描庫 -->
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
 
     <!-- 自訂 JS -->
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+    
+    <!-- ISBN 掃描功能（在 add_book 和 edit_book 頁面載入） -->
+    {% if request.path == '/add_book' or '/edit_book/' in request.path %}
+    <script src="{{ url_for('static', filename='js/isbn_scanner.js') }}"></script>
+    {% endif %}
 </body>
 </html>
