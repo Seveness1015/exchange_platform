@@ -214,6 +214,125 @@ body {
     color: #FFD700;
 }
 
+/* 書籍貼文樣式（類似 Instagram/Facebook 貼文） */
+.book-posts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 0 15px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.book-post {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.book-post:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.book-post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--secondary-beige);
+}
+
+.book-post-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.book-post-user i {
+    font-size: 20px;
+    color: var(--brown);
+}
+
+.book-post-date {
+    font-size: 12px;
+    color: var(--light-brown);
+}
+
+.book-post-image {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background-color: var(--primary-beige);
+}
+
+.book-post-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-post-content {
+    padding: 15px;
+}
+
+.book-post-content .book-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-dark);
+    margin: 0 0 8px 0;
+}
+
+.book-post-content .book-author {
+    font-size: 14px;
+    color: var(--light-brown);
+    margin: 0 0 8px 0;
+}
+
+.book-post-content .book-rating {
+    font-size: 14px;
+    color: var(--brown);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.book-post-actions {
+    display: flex;
+    gap: 15px;
+    padding: 12px 15px;
+    border-top: 1px solid var(--secondary-beige);
+}
+
+.book-post-actions .action-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--brown);
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s, color 0.2s;
+}
+
+.book-post-actions .action-btn:hover {
+    transform: scale(1.1);
+    color: var(--dark-brown);
+}
+
+.book-post-actions .favorite-btn.favorited {
+    color: #E74C3C;
+}
+
+.book-post-actions .favorite-btn.favorited i {
+    color: #E74C3C;
+}
+
 .no-books {
     text-align: center;
     padding: 40px 20px;
@@ -221,6 +340,241 @@ body {
 }
 
 .no-books p {
+    margin: 10px 0;
+    font-size: 16px;
+}
+
+/* Google Books 搜尋頁面樣式 */
+.search-form-container {
+    padding: 20px 15px;
+    background-color: white;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.search-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.search-input-group .search-input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid var(--secondary-beige);
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+.search-input-group .search-input:focus {
+    outline: none;
+    border-color: var(--brown);
+}
+
+.search-input-group .search-btn {
+    padding: 12px 20px;
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background-color 0.2s;
+}
+
+.search-input-group .search-btn:hover {
+    background-color: var(--dark-brown);
+}
+
+.google-books-results {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 0 15px;
+}
+
+.google-book-card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    gap: 15px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.google-book-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.google-book-image {
+    flex-shrink: 0;
+    width: 100px;
+    height: 140px;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--secondary-beige);
+}
+
+.google-book-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.google-book-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.google-book-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-dark);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.google-book-authors {
+    font-size: 14px;
+    color: var(--light-brown);
+    margin: 0;
+}
+
+.google-book-providers {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--brown);
+    font-weight: 500;
+    margin-top: auto;
+}
+
+.google-book-providers i {
+    font-size: 16px;
+}
+
+/* Google Books 詳情頁面樣式 */
+.google-book-detail-section {
+    margin-bottom: 30px;
+}
+
+.google-book-detail-card {
+    background-color: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    gap: 20px;
+}
+
+.google-book-detail-cover {
+    flex-shrink: 0;
+    width: 200px;
+    max-width: 200px;
+}
+
+.google-book-detail-image {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.google-book-detail-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.google-book-detail-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--text-dark);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.google-book-detail-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.google-book-detail-meta p {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.google-book-detail-meta i {
+    color: var(--brown);
+    width: 20px;
+    text-align: center;
+}
+
+.google-book-detail-description {
+    margin-top: 10px;
+}
+
+.google-book-detail-description h4 {
+    font-size: 16px;
+    color: var(--text-dark);
+    margin: 0 0 10px 0;
+}
+
+.google-book-detail-description p {
+    font-size: 14px;
+    color: var(--light-brown);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.google-book-detail-links {
+    margin-top: auto;
+}
+
+.preview-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background-color: var(--brown);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.preview-link-btn:hover {
+    background-color: var(--dark-brown);
+    color: white;
+    text-decoration: none;
+}
+
+.providers-section {
+    margin-top: 30px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--light-brown);
+}
+
+.no-results p {
     margin: 10px 0;
     font-size: 16px;
 }
@@ -1230,6 +1584,88 @@ select.form-control {
 .avatar-upload-btn i {
     font-size: 16px;
 }
+
+/* 頭像選擇容器 */
+.avatar-selection-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.avatar-preview-large {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.avatar-preview-large .avatar-preview {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--brown);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.avatar-options {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.avatar-option {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 3px solid transparent;
+    transition: all 0.3s ease;
+    background-color: white;
+    padding: 5px;
+}
+
+.avatar-option:hover {
+    border-color: var(--brown);
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.avatar-option input[type="radio"]:checked ~ img {
+    border-color: var(--brown);
+}
+
+.avatar-thumbnail {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+    transition: transform 0.3s ease, border 0.3s ease;
+    border: 0px solid transparent;
+}
+
+.avatar-option input[type="radio"]:checked ~ .avatar-thumbnail {
+    transform: scale(0.95);
+}
+
+
+.avatar-option input[type="radio"]:checked {
+    position: absolute;
+    z-index: 1;
+}
+
+
 
 .form-text {
     display: block;
