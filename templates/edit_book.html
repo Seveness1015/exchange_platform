@@ -43,7 +43,6 @@
                         <span>掃描 ISBN 快速填入</span>
                     </button>
                 </div>
-                <p class="isbn-hint">點擊「掃描 ISBN 快速填入」可自動填入書名、作者等資訊</p>
             </div>
             
             <div class="form-group">
@@ -71,16 +70,31 @@
             <div class="image-upload-section">
                 <label>書籍圖片（請使用相機拍攝）:</label>
                 
-                <!-- 相機權限提示 -->
-                <div id="cameraPermissionPrompt" class="camera-permission-prompt" style="display: none;">
-                    <div class="permission-prompt-content">
-                        <i class="fas fa-camera"></i>
-                        <h4>需要相機權限</h4>
-                        <p>為了拍攝書籍封面和封底，請授予相機使用權限</p>
-                        <button type="button" class="permission-btn" onclick="requestCameraPermission()">
-                            <i class="fas fa-check"></i>
-                            授予相機權限
-                        </button>
+                <!-- 相機權限提示 Modal -->
+                <div class="confirm-modal-overlay" id="cameraPermissionModal">
+                    <div class="confirm-modal">
+                        <div class="confirm-modal-header">
+                            <h4>
+                                <i class="fas fa-camera" style="margin-right: 8px;"></i>
+                                需要相機權限
+                            </h4>
+                        </div>
+                        <div class="confirm-modal-body">
+                            <p>為了拍攝書籍封面和封底，請授予相機使用權限</p>
+                            <p style="color: var(--light-brown); font-size: 13px; margin-top: 10px;">
+                                <i class="fas fa-info-circle"></i>
+                                請點擊下方按鈕後，在瀏覽器彈出的權限請求中選擇「允許」
+                            </p>
+                        </div>
+                        <div class="confirm-modal-footer">
+                            <button type="button" class="confirm-btn" style="background-color: var(--light-brown); color: white;" onclick="requestCameraPermission()">
+                                <i class="fas fa-check"></i>
+                                授予相機權限
+                            </button>
+                            <button type="button" class="confirm-btn" style="background-color: #e0e0e0; color: var(--text-dark);" onclick="closeCameraPermissionModal()">
+                                取消
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="image-upload-container">
@@ -114,7 +128,7 @@
                                 {% endif %}
                         </div>
                         <input type="file" id="front_image" name="front_image" accept="image/*" style="display: none;">
-                        <p class="image-hint">封面（含條碼）</p>
+                        <p class="image-hint">封面</p>
                     </div>
                     
                     <!-- 封底拍攝 -->
@@ -150,7 +164,7 @@
                         <p class="image-hint">封底</p>
                     </div>
                 </div>
-                <p class="image-instruction">請使用相機拍攝書籍封面（含條碼）和封底，留空則不更新圖片</p>
+                <p class="image-instruction">請使用相機拍攝書籍封和封底，留空則不更新圖片</p>
             </div>
         </div>
 
@@ -202,17 +216,34 @@ async function checkCameraPermission() {
     }
 }
 
+// 顯示相機權限 Modal
+function showCameraPermissionModal() {
+    const modal = document.getElementById('cameraPermissionModal');
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // 防止背景滾動
+    }
+}
+
+// 關閉相機權限 Modal
+function closeCameraPermissionModal() {
+    const modal = document.getElementById('cameraPermissionModal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = ''; // 恢復滾動
+    }
+}
+
 // 請求相機權限（提前請求）
 async function requestCameraPermission() {
-    const prompt = document.getElementById('cameraPermissionPrompt');
+    const modal = document.getElementById('cameraPermissionModal');
+    const permissionBtn = modal ? modal.querySelector('.confirm-btn[onclick="requestCameraPermission()"]') : null;
     
     try {
-        if (prompt) {
-            const btn = prompt.querySelector('.permission-btn');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 請求中...';
-            }
+        // 顯示載入狀態
+        if (permissionBtn) {
+            permissionBtn.disabled = true;
+            permissionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 請求中...';
         }
         
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -253,18 +284,15 @@ async function requestCameraPermission() {
         
         cameraPermissionGranted = true;
         
-        if (prompt) {
-            prompt.style.display = 'none';
-        }
+        // 關閉 Modal
+        closeCameraPermissionModal();
         
         showPermissionMessage('相機權限已授予！現在可以拍攝書籍照片了。', 'success');
         
-        if (prompt) {
-            const btn = prompt.querySelector('.permission-btn');
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check"></i> 授予相機權限';
-            }
+        // 恢復按鈕
+        if (permissionBtn) {
+            permissionBtn.disabled = false;
+            permissionBtn.innerHTML = '<i class="fas fa-check"></i> 授予相機權限';
         }
         
     } catch (error) {
@@ -315,12 +343,10 @@ async function requestCameraPermission() {
         
         showPermissionMessage(errorMessage, 'error');
         
-        if (prompt) {
-            const btn = prompt.querySelector('.permission-btn');
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check"></i> 授予相機權限';
-            }
+        // 恢復按鈕
+        if (permissionBtn) {
+            permissionBtn.disabled = false;
+            permissionBtn.innerHTML = '<i class="fas fa-check"></i> 授予相機權限';
         }
     }
 }
@@ -358,32 +384,51 @@ function showPermissionMessage(message, type) {
 
 // 頁面載入時檢查相機權限
 document.addEventListener('DOMContentLoaded', async function() {
-    const permissionStatus = await checkCameraPermission();
-    const prompt = document.getElementById('cameraPermissionPrompt');
+    const modal = document.getElementById('cameraPermissionModal');
     
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     try {
-        if (permissionStatus === false && prompt) {
-            prompt.style.display = 'block';
+        const permissionStatus = await checkCameraPermission();
+        
+        if (permissionStatus === false) {
+            // 權限被拒絕或未授予，顯示 Modal
+            showCameraPermissionModal();
         } else if (permissionStatus === true) {
+            // 權限已授予
             cameraPermissionGranted = true;
-            if (prompt) {
-                prompt.style.display = 'none';
-            }
-        } else if (permissionStatus === null && prompt) {
+            closeCameraPermissionModal();
+        } else if (permissionStatus === null) {
+            // 無法確定狀態（手機瀏覽器常見）
+            // 在手機上，通常需要用戶主動授予權限，所以顯示 Modal
             if (isMobile) {
-                prompt.style.display = 'block';
+                showCameraPermissionModal();
             } else {
-                prompt.style.display = 'block';
+                // 在桌面瀏覽器上，如果無法確定狀態，也顯示 Modal 讓用戶可以提前授予
+                showCameraPermissionModal();
             }
         }
     } catch (error) {
         console.error('檢查權限時發生錯誤:', error);
-        if (prompt) {
-            prompt.style.display = 'block';
-        }
+        // 發生錯誤時，顯示 Modal 讓用戶可以嘗試授予權限
+        showCameraPermissionModal();
     }
+    
+    // 點擊 Modal 背景關閉
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeCameraPermissionModal();
+            }
+        });
+    }
+    
+    // ESC 鍵關閉 Modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+            closeCameraPermissionModal();
+        }
+    });
 });
 
 // 開啟相機
@@ -407,10 +452,7 @@ async function openCamera(type) {
                 stream.getTracks().forEach(track => track.stop());
                 cameraPermissionGranted = true;
                 
-                const prompt = document.getElementById('cameraPermissionPrompt');
-                if (prompt) {
-                    prompt.style.display = 'none';
-                }
+                closeCameraPermissionModal();
             } catch (permError) {
                 console.error('無法獲取相機權限:', permError);
                 let errorMsg = '無法使用相機。';

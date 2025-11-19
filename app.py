@@ -266,7 +266,7 @@ def process_book_data(book_dict):
     
     # 如果沒有封面圖片，使用預設圖片路徑
     if not book_dict.get("front_image"):
-        book_dict["front_image"] = "static/images/user_cat01.png"
+        book_dict["front_image"] = "static/images/book_original.png"
     
     return book_dict
 
@@ -627,7 +627,7 @@ def profile():
                     
                     # 處理圖片
                     if not book_dict.get("front_image"):
-                        book_dict["front_image"] = "static/images/user_cat01.png"
+                        book_dict["front_image"] = "static/images/book_original.png"
                     
                     # 處理時間戳記（用於排序）
                     if "created_at" in book_dict and book_dict["created_at"]:
@@ -1203,7 +1203,7 @@ def book_detail(book_id):
         
         # 處理圖片
         if not book_dict.get("front_image"):
-            book_dict["front_image"] = "static/images/user_cat01.png"
+            book_dict["front_image"] = "static/images/book_original.png"
         
         # 處理賣家電子郵件顯示
         seller_email = book_dict.get("seller_email", "")
@@ -1350,6 +1350,9 @@ def search_google_books():
                 thumbnail = image_links.get("thumbnail", "") or image_links.get("smallThumbnail", "")
                 if thumbnail:
                     thumbnail = thumbnail.replace("http://", "https://")
+                else:
+                    # 如果沒有圖片，使用預設圖片
+                    thumbnail = "/static/images/book_original.png"
                 
                 # 提取其他資訊
                 description = volume_info.get("description", "")
@@ -1694,6 +1697,9 @@ def google_book_detail(google_id):
             thumbnail = image_links.get("thumbnail", "") or image_links.get("smallThumbnail", "")
             if thumbnail:
                 thumbnail = thumbnail.replace("http://", "https://")
+            else:
+                # 如果沒有圖片，使用預設圖片
+                thumbnail = "/static/images/book_original.png"
             
             book_details = {
                 "title": volume_info.get("title", title),
@@ -1804,42 +1810,63 @@ def write_review():
             except ValueError:
                 rating = 4
             
-            department = request.form.get("department", "")
-            major = request.form.get("major", "")
-            grade = request.form.get("grade", "")
+            book_type = request.form.get("book_type", "").strip()
+            course_type = request.form.get("course_type", "").strip()
+            department = request.form.get("department", "").strip()
+            major = request.form.get("major", "").strip()
+            grade = request.form.get("grade", "").strip()
             course_name = request.form.get("course_name", "").strip()
             instructor = request.form.get("instructor", "").strip()
             review_content = request.form.get("review_content", "").strip()
             
-            # 資料驗證
+            # 基本資料驗證
             if not book_title:
                 return render_template("write_review.html", error="請輸入書名。")
-            if not department:
-                return render_template("write_review.html", error="請選擇系所。")
-            if not major:
-                return render_template("write_review.html", error="請選擇科系。")
-            if not grade:
-                return render_template("write_review.html", error="請選擇年級。")
-            if not course_name:
-                return render_template("write_review.html", error="請輸入課程名稱。")
-            if not instructor:
-                return render_template("write_review.html", error="請輸入授課老師。")
+            if not book_type:
+                return render_template("write_review.html", error="請選擇書籍類型。")
             if not review_content:
                 return render_template("write_review.html", error="請輸入詳細內容。")
+            
+            # 根據書籍類型進行驗證
+            if book_type == "course":
+                # 課用書：需要課程類型、課程名稱、授課老師
+                if not course_type:
+                    return render_template("write_review.html", error="請選擇課程類型。")
+                if not course_name:
+                    return render_template("write_review.html", error="請輸入課程名稱。")
+                if not instructor:
+                    return render_template("write_review.html", error="請輸入授課老師。")
+                
+                # 系所課程：需要系所、科系、年級
+                if course_type == "department":
+                    if not department:
+                        return render_template("write_review.html", error="請選擇系所。")
+                    if not major:
+                        return render_template("write_review.html", error="請選擇科系。")
+                    if not grade:
+                        return render_template("write_review.html", error="請選擇年級。")
             
             # 儲存到 Firestore - evaluations collection
             evaluation_data = {
                 "book_title": book_title,
                 "rating": rating,
-                "department": department,
-                "major": major,
-                "grade": grade,
-                "course_name": course_name,
-                "instructor": instructor,
+                "book_type": book_type,
                 "review_content": review_content,
                 "reviewer_email": session["user"],
                 "created_at": firestore.SERVER_TIMESTAMP
             }
+            
+            # 如果是課用書，添加課程相關資訊
+            if book_type == "course":
+                evaluation_data["course_type"] = course_type
+                evaluation_data["course_name"] = course_name
+                evaluation_data["instructor"] = instructor
+                
+                # 只有系所課程才需要系所、科系、年級
+                if course_type == "department":
+                    evaluation_data["department"] = department
+                    evaluation_data["major"] = major
+                    evaluation_data["grade"] = grade
             
             evaluation_ref = db.collection("evaluations").document()
             evaluation_ref.set(evaluation_data)
@@ -1963,10 +1990,106 @@ def delete_book(book_id):
         if book_dict.get("seller_email") != session["user"]:
             return jsonify({"success": False, "error": "沒有權限"}), 403
         
-        # 刪除書籍
-        book_ref.delete()
+        # 1. 刪除相關的評價（evaluation_id）
+        evaluation_id = book_dict.get("evaluation_id", "")
+        if evaluation_id:
+            try:
+                eval_ref = db.collection("evaluations").document(evaluation_id)
+                eval_doc = eval_ref.get()
+                if eval_doc.exists:
+                    eval_ref.delete()
+                    print(f"✓ 已刪除相關評價: {evaluation_id}")
+            except Exception as e:
+                print(f"⚠ 刪除評價時發生錯誤: {e}")
         
-        return jsonify({"success": True, "message": "書籍已刪除"})
+        # 2. 刪除所有收藏該書籍的記錄（favorites）
+        try:
+            favorites_ref = db.collection("favorites")
+            favorites_query = favorites_ref.where("book_id", "==", book_id)
+            favorites = favorites_query.stream()
+            
+            deleted_favorites_count = 0
+            for favorite in favorites:
+                try:
+                    favorite.reference.delete()
+                    deleted_favorites_count += 1
+                except Exception as e:
+                    print(f"⚠ 刪除收藏記錄時發生錯誤: {e}")
+            
+            if deleted_favorites_count > 0:
+                print(f"✓ 已刪除 {deleted_favorites_count} 筆收藏記錄")
+        except Exception as e:
+            print(f"⚠ 查詢收藏記錄時發生錯誤: {e}")
+        
+        # 3. 刪除 Firebase Storage 中的圖片
+        try:
+            bucket_name = "book-exchange-d4351.firebasestorage.app"
+            bucket = storage.bucket(bucket_name)
+            
+            # 刪除封面圖片
+            front_image = book_dict.get("front_image", "")
+            if front_image and ("firebasestorage.app" in front_image or "firebasestorage.googleapis.com" in front_image):
+                try:
+                    # 從 URL 中提取檔案路徑
+                    # URL 格式: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Fto%2Ffile?alt=media&token=...
+                    import urllib.parse
+                    file_path = None
+                    
+                    if "firebasestorage.googleapis.com" in front_image:
+                        # 提取路徑部分
+                        if "/o/" in front_image:
+                            path_part = front_image.split("/o/")[1].split("?")[0]
+                            file_path = urllib.parse.unquote(path_part)
+                    elif front_image.startswith("books/"):
+                        # 直接使用路徑（新格式）
+                        file_path = front_image
+                    elif front_image.startswith("book_images/"):
+                        # 舊格式路徑
+                        file_path = front_image
+                    
+                    if file_path:
+                        blob = bucket.blob(file_path)
+                        if blob.exists():
+                            blob.delete()
+                            print(f"✓ 已刪除封面圖片: {file_path}")
+                        else:
+                            print(f"⚠ 封面圖片不存在: {file_path}")
+                except Exception as e:
+                    print(f"⚠ 刪除封面圖片時發生錯誤: {e}")
+            
+            # 刪除封底圖片
+            back_image = book_dict.get("back_image", "")
+            if back_image and ("firebasestorage.app" in back_image or "firebasestorage.googleapis.com" in back_image):
+                try:
+                    import urllib.parse
+                    file_path = None
+                    
+                    if "firebasestorage.googleapis.com" in back_image:
+                        if "/o/" in back_image:
+                            path_part = back_image.split("/o/")[1].split("?")[0]
+                            file_path = urllib.parse.unquote(path_part)
+                    elif back_image.startswith("books/"):
+                        file_path = back_image
+                    elif back_image.startswith("book_images/"):
+                        file_path = back_image
+                    
+                    if file_path:
+                        blob = bucket.blob(file_path)
+                        if blob.exists():
+                            blob.delete()
+                            print(f"✓ 已刪除封底圖片: {file_path}")
+                        else:
+                            print(f"⚠ 封底圖片不存在: {file_path}")
+                except Exception as e:
+                    print(f"⚠ 刪除封底圖片時發生錯誤: {e}")
+        except Exception as e:
+            print(f"⚠ 刪除圖片時發生錯誤: {e}")
+        
+        # 4. 最後刪除書籍本身
+        book_ref.delete()
+        print(f"✓ 已刪除書籍: {book_id}")
+        
+        return jsonify({"success": True, "message": "書籍及相關資料已刪除"})
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -2091,40 +2214,74 @@ def edit_review(review_id):
                 except ValueError:
                     rating = 4
                 
-                department = request.form.get("department", "")
-                major = request.form.get("major", "")
-                grade = request.form.get("grade", "")
+                book_type = request.form.get("book_type", "").strip()
+                course_type = request.form.get("course_type", "").strip()
+                department = request.form.get("department", "").strip()
+                major = request.form.get("major", "").strip()
+                grade = request.form.get("grade", "").strip()
                 course_name = request.form.get("course_name", "").strip()
                 instructor = request.form.get("instructor", "").strip()
                 review_content = request.form.get("review_content", "").strip()
                 
-                # 資料驗證
+                # 基本資料驗證
                 if not book_title:
                     return render_template("edit_review.html", review=review_dict, error="請輸入書名。")
-                if not department:
-                    return render_template("edit_review.html", review=review_dict, error="請選擇系所。")
-                if not major:
-                    return render_template("edit_review.html", review=review_dict, error="請選擇科系。")
-                if not grade:
-                    return render_template("edit_review.html", review=review_dict, error="請選擇年級。")
-                if not course_name:
-                    return render_template("edit_review.html", review=review_dict, error="請輸入課程名稱。")
-                if not instructor:
-                    return render_template("edit_review.html", review=review_dict, error="請輸入授課老師。")
+                if not book_type:
+                    return render_template("edit_review.html", review=review_dict, error="請選擇書籍類型。")
                 if not review_content:
                     return render_template("edit_review.html", review=review_dict, error="請輸入詳細內容。")
+                
+                # 根據書籍類型進行驗證
+                if book_type == "course":
+                    # 課用書：需要課程類型、課程名稱、授課老師
+                    if not course_type:
+                        return render_template("edit_review.html", review=review_dict, error="請選擇課程類型。")
+                    if not course_name:
+                        return render_template("edit_review.html", review=review_dict, error="請輸入課程名稱。")
+                    if not instructor:
+                        return render_template("edit_review.html", review=review_dict, error="請輸入授課老師。")
+                    
+                    # 系所課程：需要系所、科系、年級
+                    if course_type == "department":
+                        if not department:
+                            return render_template("edit_review.html", review=review_dict, error="請選擇系所。")
+                        if not major:
+                            return render_template("edit_review.html", review=review_dict, error="請選擇科系。")
+                        if not grade:
+                            return render_template("edit_review.html", review=review_dict, error="請選擇年級。")
                 
                 # 更新書評資料
                 update_data = {
                     "book_title": book_title,
                     "rating": rating,
-                    "department": department,
-                    "major": major,
-                    "grade": grade,
-                    "course_name": course_name,
-                    "instructor": instructor,
+                    "book_type": book_type,
                     "review_content": review_content,
                 }
+                
+                # 如果是課用書，添加課程相關資訊
+                if book_type == "course":
+                    update_data["course_type"] = course_type
+                    update_data["course_name"] = course_name
+                    update_data["instructor"] = instructor
+                    
+                    # 只有系所課程才需要系所、科系、年級
+                    if course_type == "department":
+                        update_data["department"] = department
+                        update_data["major"] = major
+                        update_data["grade"] = grade
+                    else:
+                        # 如果不是系所課程，清除這些欄位
+                        update_data["department"] = firestore.DELETE_FIELD
+                        update_data["major"] = firestore.DELETE_FIELD
+                        update_data["grade"] = firestore.DELETE_FIELD
+                else:
+                    # 如果是課外書，清除所有課程相關欄位
+                    update_data["course_type"] = firestore.DELETE_FIELD
+                    update_data["course_name"] = firestore.DELETE_FIELD
+                    update_data["instructor"] = firestore.DELETE_FIELD
+                    update_data["department"] = firestore.DELETE_FIELD
+                    update_data["major"] = firestore.DELETE_FIELD
+                    update_data["grade"] = firestore.DELETE_FIELD
                 
                 review_ref.update(update_data)
                 
@@ -2162,10 +2319,31 @@ def delete_review(review_id):
         if review_dict.get("reviewer_email") != session["user"]:
             return jsonify({"success": False, "error": "沒有權限"}), 403
         
-        # 刪除書評
-        review_ref.delete()
+        # 1. 查找並更新所有引用此評價的書籍（清空 evaluation_id）
+        try:
+            books_ref = db.collection("books")
+            books_query = books_ref.where("evaluation_id", "==", review_id)
+            books = books_query.stream()
+            
+            updated_books_count = 0
+            for book in books:
+                try:
+                    book.reference.update({"evaluation_id": firestore.DELETE_FIELD})
+                    updated_books_count += 1
+                    print(f"✓ 已更新書籍 {book.id} 的 evaluation_id")
+                except Exception as e:
+                    print(f"⚠ 更新書籍 evaluation_id 時發生錯誤: {e}")
+            
+            if updated_books_count > 0:
+                print(f"✓ 已更新 {updated_books_count} 本書籍的 evaluation_id")
+        except Exception as e:
+            print(f"⚠ 查詢相關書籍時發生錯誤: {e}")
         
-        return jsonify({"success": True, "message": "書評已刪除"})
+        # 2. 刪除書評本身
+        review_ref.delete()
+        print(f"✓ 已刪除書評: {review_id}")
+        
+        return jsonify({"success": True, "message": "書評及相關資料已刪除"})
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -2314,91 +2492,6 @@ def add_book():
             return render_template("add_book.html", error=f"提交失敗：{error_msg}。請檢查控制台日誌獲取更多資訊。")
     
     return render_template("add_book.html")  # 渲染新增書籍頁面
-
-# 測試路由 - 查詢所有書籍（僅供測試用）
-@app.route("/test/books")
-def test_books():
-    if "user" not in session:
-        return redirect("/login")
-    
-    try:
-        books_ref = db.collection("books")
-        books = books_ref.limit(10).stream()  # 限制查詢 10 筆
-        
-        books_list = []
-        for book in books:
-            book_dict = book.to_dict()
-            book_dict["id"] = book.id
-            # 處理時間戳記
-            if "created_at" in book_dict and book_dict["created_at"]:
-                book_dict["created_at"] = str(book_dict["created_at"])
-            books_list.append(book_dict)
-        
-        return jsonify({
-            "success": True,
-            "count": len(books_list),
-            "books": books_list
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-# 測試路由 - 查詢所有評價（僅供測試用）
-@app.route("/test/evaluations")
-def test_evaluations():
-    if "user" not in session:
-        return redirect("/login")
-    
-    try:
-        evaluations_ref = db.collection("evaluations")
-        evaluations = evaluations_ref.limit(10).stream()  # 限制查詢 10 筆
-        
-        evaluations_list = []
-        for evaluation in evaluations:
-            eval_dict = evaluation.to_dict()
-            eval_dict["id"] = evaluation.id
-            # 處理時間戳記
-            if "created_at" in eval_dict and eval_dict["created_at"]:
-                eval_dict["created_at"] = str(eval_dict["created_at"])
-            evaluations_list.append(eval_dict)
-        
-        return jsonify({
-            "success": True,
-            "count": len(evaluations_list),
-            "evaluations": evaluations_list
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
-
-# 傳送訊息
-# @app.route("/send_message", methods=["POST"])
-# def send_message():
-#     data = request.json
-#     chat_id = data["chat_id"]
-#     sender = data["sender"]
-#     text = data.get("text", "")
-
-#     if not chat_id or not sender:
-#         return jsonify({"error": "缺少 chat_id 或 sender"}), 400
-
-#     message_ref = db.collection("chats").document(chat_id).collection("messages").document()
-#     message_ref.set({
-#         "sender": sender,
-#         "text": text,
-#         "timestamp": datetime.datetime.utcnow()
-#     })
-
-#     return jsonify({"message": "訊息已送出"}), 200
-
 # ============================================================
 # 書籍匹配算法（共用函數）
 # ============================================================

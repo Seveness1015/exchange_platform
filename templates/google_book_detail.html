@@ -18,9 +18,9 @@
         <div class="google-book-detail-card">
             <div class="google-book-detail-cover">
                 {% if book_details.thumbnail %}
-                    <img src="{{ book_details.thumbnail }}" alt="{{ book_details.title }}" class="google-book-detail-image" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                    <img src="{{ book_details.thumbnail }}" alt="{{ book_details.title }}" class="google-book-detail-image" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
                 {% else %}
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book_details.title }}" class="google-book-detail-image">
+                    <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book_details.title }}" class="google-book-detail-image">
                 {% endif %}
             </div>
             <div class="google-book-detail-info">
@@ -108,9 +108,9 @@
             {% for provider in providers %}
             <div class="book-card" onclick="viewBookDetail('{{ provider.id }}')" style="cursor: pointer;">
                 {% if provider.front_image and provider.front_image != '' and not provider.front_image.startswith('static/') %}
-                    <img src="{{ provider.front_image }}" alt="{{ provider.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                    <img src="{{ provider.front_image }}" alt="{{ provider.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
                 {% else %}
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ provider.title }}" class="book-cover">
+                    <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ provider.title }}" class="book-cover">
                 {% endif %}
                 <div class="book-info">
                     <h3 class="book-title">{{ provider.title }}</h3>

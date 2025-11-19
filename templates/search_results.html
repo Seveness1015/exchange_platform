@@ -26,9 +26,9 @@
                 {% for book in books %}
                 <div class="book-card" onclick="viewBookDetail('{{ book.id }}')" style="cursor: pointer;">
                     {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
-                        <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                        <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
                     {% else %}
-                        <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
+                        <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }}" class="book-cover">
                     {% endif %}
                     <div class="book-info">
                         <h3 class="book-title">{{ book.title }}</h3>
@@ -67,7 +67,7 @@
                 <h3 class="section-title">找到 {{ wanted_books|length }} 個需求</h3>
                 {% for wanted_book in wanted_books %}
                 <div class="book-card">
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ wanted_book.book_title }}" class="book-cover">
+                    <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ wanted_book.book_title }}" class="book-cover">
                     <div class="book-info">
                         <h3 class="book-title">{{ wanted_book.book_title if wanted_book.book_title else '未知書名' }}</h3>
                         <p class="book-author">作者 {{ wanted_book.author if wanted_book.author else '未知' }}</p>
@@ -120,20 +120,35 @@ function viewBookDetail(bookId) {
 }
 
 // 收藏功能
-function toggleFavorite(bookId, btn) {
+async function toggleFavorite(bookId, btn) {
     const icon = btn.querySelector('i');
-    if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        btn.classList.add('favorited');
-        // TODO: 發送到後端儲存收藏
-        console.log('收藏書籍:', bookId);
-    } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        btn.classList.remove('favorited');
-        // TODO: 發送到後端移除收藏
-        console.log('取消收藏:', bookId);
+    const isFavorited = icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                btn.classList.remove('favorited');
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('favorited');
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
     }
 }
 

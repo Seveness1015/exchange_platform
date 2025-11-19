@@ -171,9 +171,9 @@
                     {% for book in provided_books %}
                     <div class="book-card">
                         {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
-                            <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                            <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
                         {% else %}
-                            <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
+                            <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }}" class="book-cover">
                         {% endif %}
                         <div class="book-info">
                             <h3 class="book-title">{{ book.title }}</h3>
@@ -224,7 +224,7 @@
                 {% if needed_books %}
                     {% for book in needed_books %}
                     <div class="book-card">
-                        <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.book_title }}" class="book-cover">
+                        <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.book_title }}" class="book-cover">
                         <div class="book-info">
                             <h3 class="book-title">{{ book.book_title if book.book_title else '未知書名' }}</h3>
                             <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
@@ -285,20 +285,67 @@
                     <div class="book-card">
                         <div class="book-info" style="flex: 1;">
                             <h3 class="book-title">{{ review.book_title if review.book_title else '未知書名' }}</h3>
-                            <p class="book-author-label">課程：{{ review.course_name if review.course_name else '未知' }}</p>
-                            <p class="book-author">
-                                <i class="fas fa-user"></i>
-                                {{ review.instructor if review.instructor else '未知老師' }}
-                            </p>
-                            <p class="book-author">
-                                <i class="fas fa-graduation-cap"></i>
-                                {{ review.department if review.department else '' }} - {{ review.major if review.major else '' }}
-                            </p>
+                            
+                            <!-- 書籍類型標籤 -->
+                            {% if review.book_type == 'extracurricular' %}
+                                <p class="book-author-label" style="color: var(--light-brown); font-weight: 500;">
+                                    <i class="fas fa-book-open"></i>
+                                    課外書
+                                </p>
+                            {% elif review.book_type == 'course' %}
+                                <p class="book-author-label" style="color: var(--light-brown); font-weight: 500;">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    課用書
+                                    {% if review.course_type == 'general' %}
+                                        - 通識課
+                                    {% elif review.course_type == 'language' %}
+                                        - 語文課
+                                    {% elif review.course_type == 'department' %}
+                                        - 系所課程
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            
+                            <!-- 評分 -->
                             <p class="book-rating">
                                 <i class="fas fa-star"></i>
                                 {{ review.rating if review.rating else 0 }}
                             </p>
+                            
+                            <!-- 課用書相關資訊 -->
+                            {% if review.book_type == 'course' %}
+                                {% if review.course_name %}
+                                <p class="book-author-label">
+                                    <i class="fas fa-book"></i>
+                                    課程：{{ review.course_name }}
+                                </p>
+                                {% endif %}
+                                
+                                {% if review.instructor %}
+                                <p class="book-author">
+                                    <i class="fas fa-user"></i>
+                                    授課老師：{{ review.instructor }}
+                                </p>
+                                {% endif %}
+                                
+                                <!-- 系所課程才顯示系所、科系、年級 -->
+                                {% if review.course_type == 'department' %}
+                                    {% if review.department or review.major %}
+                                    <p class="book-author">
+                                        <i class="fas fa-graduation-cap"></i>
+                                        {% if review.department %}{{ review.department }}{% endif %}
+                                        {% if review.department and review.major %} - {% endif %}
+                                        {% if review.major %}{{ review.major }}{% endif %}
+                                        {% if review.grade %} ({{ review.grade }}){% endif %}
+                                    </p>
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                            
+                            <!-- 詳細內容 -->
                             <p class="review-content">{{ review.review_content if review.review_content else '無詳細內容' }}</p>
+                            
+                            <!-- 創建時間 -->
                             {% if review.created_at %}
                             <p class="review-date">
                                 <small>{{ review.created_at }}</small>

@@ -133,13 +133,13 @@ function createGoogleBookCard(book) {
     card.className = 'google-book-card';
     card.onclick = () => viewGoogleBookDetail(book.google_id, book.title, book.authors, book.isbn);
     
-    const thumbnail = book.thumbnail || '/static/images/user_cat01.png';
+    const thumbnail = book.thumbnail || '/static/images/book_original.png';
     const authors = book.authors ? book.authors.join(', ') : '未知作者';
     const providerCount = book.provider_count || 0;
     
     card.innerHTML = `
         <div class="google-book-image">
-            <img src="${thumbnail}" alt="${escapeHtml(book.title)}" onerror="this.src='/static/images/user_cat01.png'">
+            <img src="${thumbnail}" alt="${escapeHtml(book.title)}" onerror="this.src='/static/images/book_original.png'">
         </div>
         <div class="google-book-info">
             <h3 class="google-book-title">${escapeHtml(book.title)}</h3>
@@ -343,7 +343,7 @@ function createBookPost(book) {
     
     const imageUrl = (book.front_image && book.front_image !== '' && !book.front_image.startsWith('static/')) 
         ? book.front_image 
-        : '/static/images/user_cat01.png';
+        : '/static/images/book_original.png';
     
     const ratingHtml = book.rating 
         ? `<p class="book-rating"><i class="fas fa-star"></i> ${book.rating.toFixed(1)}</p>`
@@ -351,7 +351,7 @@ function createBookPost(book) {
     
     post.innerHTML = `
         <div class="book-post-image">
-            <img src="${imageUrl}" alt="${book.title}" onerror="this.src='/static/images/user_cat01.png'">
+            <img src="${imageUrl}" alt="${book.title}" onerror="this.src='/static/images/book_original.png'">
         </div>
         <div class="book-post-content-wrapper">
             <div class="book-post-header">

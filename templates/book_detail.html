@@ -18,9 +18,9 @@
         <div class="book-detail-card">
             <div class="book-detail-cover">
                 {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
-                    <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-detail-image" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                    <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-detail-image" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
                 {% else %}
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-detail-image">
+                    <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }}" class="book-detail-image">
                 {% endif %}
             </div>
             <div class="book-detail-info">
@@ -141,23 +141,38 @@
 
 <script>
 // 收藏功能
-function toggleFavorite(bookId, btn) {
+async function toggleFavorite(bookId, btn) {
     const icon = btn.querySelector('i');
     const span = btn.querySelector('span');
-    if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        span.textContent = '已收藏';
-        btn.classList.add('favorited');
-        // TODO: 發送到後端儲存收藏
-        console.log('收藏書籍:', bookId);
-    } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        span.textContent = '收藏';
-        btn.classList.remove('favorited');
-        // TODO: 發送到後端移除收藏
-        console.log('取消收藏:', bookId);
+    const isFavorited = icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                span.textContent = '收藏';
+                btn.classList.remove('favorited');
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                span.textContent = '已收藏';
+                btn.classList.add('favorited');
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
     }
 }
 
