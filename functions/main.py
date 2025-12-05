@@ -20,29 +20,40 @@ if 'GOOGLE_APPLICATION_CREDENTIALS' not in os.environ:
     if os.path.exists(config_path):
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = config_path
 
-# 導入 Flask 應用
-# 注意：這需要修改原始 app.py 以支持條件運行
+# 設置標誌，告訴應用我們在 Firebase Functions 環境中
+os.environ['FIREBASE_FUNCTIONS'] = '1'
+
+# 從應用工廠創建應用
 try:
-    # 設置標誌，告訴 app.py 我們在 Firebase Functions 環境中
-    os.environ['FIREBASE_FUNCTIONS'] = '1'
-    
-    # 導入原始應用
-    from app import app
+    from app import create_app
+    app = create_app()
     
     # 包裝應用以適配 Firebase Functions
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     
+    print("✓ Flask 應用已成功從應用工廠創建")
+    
 except ImportError as e:
     print(f"導入應用失敗: {e}")
-    print("請確保 app.py 在項目根目錄中")
-    # 創建一個簡單的錯誤應用
-    from flask import Flask
-    app = Flask(__name__)
+    import traceback
+    traceback.print_exc()
+    print("嘗試使用原始 app.py...")
     
-    @app.route('/')
-    def error():
-        return "應用導入失敗，請檢查部署配置", 500
+    # 回退到原始 app.py（如果存在）
+    try:
+        from app import app as flask_app
+        app = flask_app
+        print("✓ 使用原始 app.py")
+    except ImportError:
+        print("無法導入應用，創建錯誤應用")
+        # 創建一個簡單的錯誤應用
+        from flask import Flask
+        app = Flask(__name__)
+        
+        @app.route('/')
+        def error():
+            return "應用導入失敗，請檢查部署配置。請確保已完成路由遷移。", 500
 
 # Firebase Functions HTTP 觸發器
 import functions_framework
