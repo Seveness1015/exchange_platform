@@ -77,10 +77,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // 點擊選單內的連結時關閉選單
         const menuItems = popup.querySelectorAll('.action-menu-item');
         menuItems.forEach(item => {
-            item.addEventListener('click', function() {
+            item.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
                 // 如果是有效連結（非 #），延遲關閉以確保導航發生
-                if (this.getAttribute('href') && this.getAttribute('href') !== '#') {
-                    setTimeout(closeActionMenu, 100);
+                if (href && href !== '#') {
+                    // 不阻止默認行為，讓連結正常導航
+                    // 延遲關閉選單，確保導航先發生
+                    setTimeout(closeActionMenu, 50);
+                } else {
+                    e.preventDefault();
                 }
             });
         });

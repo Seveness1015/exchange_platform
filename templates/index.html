@@ -18,60 +18,186 @@
     </div>
     {% endif %}
     
-    <!-- 最新推薦標題 -->
-    <h2 class="section-title">最新推薦</h2>
+    <!-- 搜尋結果標題（搜尋時顯示） -->
+    <h2 class="section-title" id="searchResultsTitle" style="display: none;">搜尋結果</h2>
     
-    <!-- 書籍卡片列表 -->
-    <div class="book-list">
-        {% if books %}
-            {% for book in books %}
-            <div class="book-card" onclick="viewBookDetail('{{ book.id }}')" style="cursor: pointer;">
-                {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
-                    <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
-                {% else %}
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
-                {% endif %}
-                <div class="book-info">
-                    <h3 class="book-title">{{ book.title }}</h3>
-                    <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
-                    {% if book.rating %}
-                    <p class="book-rating">
-                        <i class="fas fa-star"></i>
-                        {{ "%.1f"|format(book.rating) }}
-                    </p>
-                    {% endif %}
-                </div>
-                <div class="book-actions" onclick="event.stopPropagation();">
-                    <button class="action-btn" onclick="toggleFavorite('{{ book.id }}', this)" title="收藏">
-                        <i class="far fa-heart"></i>
-                    </button>
-                    <button class="action-btn" onclick="openMessage('{{ book.id }}')" title="留言">
-                        <i class="fas fa-comment"></i>
-                    </button>
-                    <button class="action-btn" onclick="viewSellerProfile('{{ book.seller_email }}')" title="賣家資料">
-                        <i class="fas fa-user-circle"></i>
-                    </button>
-                    <button class="action-btn" onclick="showMoreOptions('{{ book.id }}', this)" title="更多選項">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="no-books">
-                <p>目前沒有可交換的書籍</p>
-                <p>成為第一個發布書籍的人吧！</p>
-            </div>
-        {% endif %}
+    <!-- 推薦書籍標題（預設顯示） -->
+    <h2 class="section-title" id="recommendedTitle">為您推薦</h2>
+    
+    <!-- Google Books 搜尋結果 -->
+    <div id="googleBooksResults" class="google-books-results" style="display: none;">
+        <!-- 結果將通過 JavaScript 動態載入 -->
+    </div>
+    
+    <!-- 書籍貼文列表 -->
+    <div class="book-posts-container" id="bookPostsContainer">
+        <!-- 書籍貼文將通過 JavaScript 動態載入 -->
+    </div>
+    
+    <!-- Google Books 搜尋載入指示器 -->
+    <div class="loading-indicator" id="googleBooksLoadingIndicator" style="display: none; text-align: center; padding: 20px;">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>搜尋中...</span>
+    </div>
+    
+    <!-- Google Books 無結果提示 -->
+    <div class="no-results" id="googleBooksNoResults" style="display: none; text-align: center; padding: 40px 20px;">
+        <i class="fas fa-book-open" style="font-size: 48px; color: var(--light-brown); margin-bottom: 15px;"></i>
+        <p>找不到相關書籍</p>
+        <p style="color: var(--light-brown); font-size: 14px;">請嘗試其他關鍵字</p>
+    </div>
+    
+    <!-- 載入更多指示器 -->
+    <div class="loading-indicator" id="loadingIndicator" style="display: none; text-align: center; padding: 20px;">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>載入中...</span>
+    </div>
+    
+    <!-- 沒有更多書籍提示 -->
+    <div class="no-more-books" id="noMoreBooks" style="display: none; text-align: center; padding: 20px; color: var(--light-brown);">
+        <p>沒有更多書籍了</p>
     </div>
 </div>
 
 <script>
+let currentPage = 1;
+let isLoading = false;
+let hasMoreBooks = true;
+let favoriteStatuses = {}; // 儲存收藏狀態
+let displayedBookIds = new Set(); // 記錄已顯示的書籍ID
+let isSearchMode = false;
+
+// Google Books 搜尋功能（提前定義，暴露到全局作用域）
+// 使用不同的函數名避免與 scripts.js 中的 performGoogleBooksSearch 衝突
+window.performGoogleBooksSearchImpl = async function() {
+    console.log('window.performGoogleBooksSearchImpl 被調用');
+    const searchQuery = document.getElementById('searchInput').value.trim();
+    console.log('搜尋關鍵字:', searchQuery);
+    
+    if (!searchQuery) {
+        alert('請輸入搜尋關鍵字');
+        return;
+    }
+    
+    // 切換到搜尋模式
+    isSearchMode = true;
+    console.log('切換到搜尋模式');
+    
+    // 顯示搜尋結果區域，隱藏推薦書籍
+    document.getElementById('searchResultsTitle').style.display = 'block';
+    document.getElementById('recommendedTitle').style.display = 'none';
+    document.getElementById('bookPostsContainer').style.display = 'none';
+    document.getElementById('googleBooksResults').style.display = 'block';
+    document.getElementById('loadingIndicator').style.display = 'none';
+    document.getElementById('noMoreBooks').style.display = 'none';
+    
+    const resultsContainer = document.getElementById('googleBooksResults');
+    const loadingIndicator = document.getElementById('googleBooksLoadingIndicator');
+    const noResults = document.getElementById('googleBooksNoResults');
+    
+    // 清空之前的結果
+    resultsContainer.innerHTML = '';
+    loadingIndicator.style.display = 'block';
+    noResults.style.display = 'none';
+    
+    try {
+        const response = await fetch(`/api/google_books/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await response.json();
+        
+        loadingIndicator.style.display = 'none';
+        
+        if (data.success && data.books && data.books.length > 0) {
+            renderGoogleBooksResults(data.books);
+        } else {
+            noResults.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('搜尋失敗:', error);
+        loadingIndicator.style.display = 'none';
+        alert('搜尋時發生錯誤，請稍後再試');
+    }
+};
+
+function renderGoogleBooksResults(books) {
+    const container = document.getElementById('googleBooksResults');
+    container.innerHTML = '';
+    
+    books.forEach(book => {
+        const bookCard = createGoogleBookCard(book);
+        container.appendChild(bookCard);
+    });
+}
+
+function createGoogleBookCard(book) {
+    const card = document.createElement('div');
+    card.className = 'google-book-card';
+    card.onclick = () => viewGoogleBookDetail(book.google_id, book.title, book.authors, book.isbn);
+    
+    const thumbnail = book.thumbnail || '/static/images/book_original.png';
+    const authors = book.authors ? book.authors.join(', ') : '未知作者';
+    const providerCount = book.provider_count || 0;
+    
+    card.innerHTML = `
+        <div class="google-book-image">
+            <img src="${thumbnail}" alt="${escapeHtml(book.title)}" onerror="this.src='/static/images/book_original.png'">
+        </div>
+        <div class="google-book-info">
+            <h3 class="google-book-title">${escapeHtml(book.title)}</h3>
+            <p class="google-book-authors">作者：${escapeHtml(authors)}</p>
+            <div class="google-book-providers">
+                <i class="fas fa-users"></i>
+                <span>${providerCount} 人提供此書</span>
+            </div>
+        </div>
+    `;
+    
+    return card;
+}
+
+function viewGoogleBookDetail(googleId, title, authors, isbn) {
+    // 獲取當前的搜尋關鍵字
+    const searchQuery = document.getElementById('searchInput').value.trim();
+    let url = `/google_book/${encodeURIComponent(googleId)}?title=${encodeURIComponent(title)}&authors=${encodeURIComponent(authors || '')}&isbn=${encodeURIComponent(isbn || '')}`;
+    
+    // 如果有搜尋關鍵字，添加到 URL 參數中
+    if (searchQuery) {
+        url += `&search=${encodeURIComponent(searchQuery)}`;
+    }
+    
+    // 儲存搜尋狀態到 sessionStorage
+    if (isSearchMode && searchQuery) {
+        sessionStorage.setItem('lastSearchQuery', searchQuery);
+    }
+    
+    window.location.href = url;
+}
+
+// 清除搜尋結果，返回推薦模式
+function clearSearch() {
+    isSearchMode = false;
+    document.getElementById('searchInput').value = '';
+    document.getElementById('searchResultsTitle').style.display = 'none';
+    document.getElementById('recommendedTitle').style.display = 'block';
+    document.getElementById('bookPostsContainer').style.display = 'block';
+    document.getElementById('googleBooksResults').style.display = 'none';
+    document.getElementById('googleBooksNoResults').style.display = 'none';
+    document.getElementById('googleBooksLoadingIndicator').style.display = 'none';
+    document.getElementById('googleBooksResults').innerHTML = '';
+    
+    // 如果推薦書籍列表為空，重新載入
+    const container = document.getElementById('bookPostsContainer');
+    if (!container || container.children.length === 0) {
+        currentPage = 1;
+        hasMoreBooks = true;
+        displayedBookIds.clear();
+        loadRecommendedBooks();
+    }
+}
+
 // 自動關閉成功訊息
 document.addEventListener('DOMContentLoaded', function() {
     const successMessage = document.getElementById('successMessage');
     if (successMessage) {
-        // 3秒後自動淡出成功訊息
         setTimeout(function() {
             successMessage.style.opacity = '0';
             successMessage.style.transition = 'opacity 0.5s';
@@ -80,47 +206,347 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 500);
         }, 3000);
     }
+    
+    // 檢查 URL 參數，如果有搜尋關鍵字則執行搜尋
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchQuery = urlParams.get('q');
+    
+    if (searchQuery) {
+        // 將搜尋關鍵字填入輸入欄
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = searchQuery;
+            // 執行搜尋
+            performGoogleBooksSearch();
+        }
+    } else {
+        // 載入推薦書籍
+        loadRecommendedBooks();
+        
+        // 設置無限滾動
+        setupInfiniteScroll();
+    }
+    
+    // 監聽搜尋輸入欄的變化，如果清空則返回推薦模式
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            // 如果輸入欄被清空且處於搜尋模式，返回推薦模式
+            if (this.value.trim() === '' && isSearchMode) {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    clearSearch();
+                }, 500); // 延遲 500ms 以避免頻繁切換
+            }
+        });
+    }
 });
 
+// 載入推薦書籍
+async function loadRecommendedBooks() {
+    try {
+        const response = await fetch('/api/recommended_books');
+        const data = await response.json();
+        
+        if (data.success && data.books.length > 0) {
+            // 記錄已顯示的書籍ID
+            data.books.forEach(book => displayedBookIds.add(book.id));
+            renderBooks(data.books, true);
+            // 如果推薦書籍不足10本，繼續載入其他書籍
+            if (data.books.length < 10) {
+                currentPage = 1;
+                loadMoreBooks();
+            }
+        } else {
+            // 如果沒有推薦書籍，直接載入所有書籍
+            currentPage = 1;
+            loadMoreBooks();
+        }
+    } catch (error) {
+        console.error('載入推薦書籍失敗:', error);
+        currentPage = 1;
+        loadMoreBooks();
+    }
+}
+
+// 載入更多書籍
+async function loadMoreBooks() {
+    if (isLoading || !hasMoreBooks) return;
+    
+    isLoading = true;
+    document.getElementById('loadingIndicator').style.display = 'block';
+    
+    try {
+        // 傳遞已顯示的書籍ID，避免重複
+        const excludedIds = Array.from(displayedBookIds).join(',');
+        const response = await fetch(`/api/books?page=${currentPage}&excluded_ids=${excludedIds}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.books.length > 0) {
+                // 過濾掉已顯示的書籍
+                const newBooks = data.books.filter(book => !displayedBookIds.has(book.id));
+                if (newBooks.length > 0) {
+                    newBooks.forEach(book => displayedBookIds.add(book.id));
+                    renderBooks(newBooks, currentPage === 1 && displayedBookIds.size === newBooks.length);
+                    hasMoreBooks = data.has_more;
+                    currentPage++;
+                } else {
+                    // 如果所有書籍都已顯示，嘗試下一頁
+                    currentPage++;
+                    if (currentPage * 10 > displayedBookIds.size + 50) {
+                        hasMoreBooks = false;
+                    }
+                }
+            } else {
+                hasMoreBooks = false;
+            }
+        } else {
+            console.error('載入書籍失敗:', data.error);
+            hasMoreBooks = false;
+        }
+    } catch (error) {
+        console.error('載入書籍時發生錯誤:', error);
+        hasMoreBooks = false;
+    } finally {
+        isLoading = false;
+        document.getElementById('loadingIndicator').style.display = 'none';
+        if (!hasMoreBooks) {
+            document.getElementById('noMoreBooks').style.display = 'block';
+        }
+    }
+}
+
+// 渲染書籍列表
+function renderBooks(books, clearContainer = false) {
+    const container = document.getElementById('bookPostsContainer');
+    
+    if (clearContainer) {
+        container.innerHTML = '';
+    }
+    
+    books.forEach(book => {
+        const bookPost = createBookPost(book);
+        container.appendChild(bookPost);
+        
+        // 檢查收藏狀態
+        checkFavoriteStatus(book.id);
+    });
+}
+
+// 創建書籍貼文元素（橫向排列，類似搜尋結果）
+function createBookPost(book) {
+    const post = document.createElement('div');
+    post.className = 'book-post';
+    post.style.cursor = 'pointer';  // 添加指針樣式
+    
+    const imageUrl = (book.front_image && book.front_image !== '' && !book.front_image.startsWith('static/')) 
+        ? book.front_image 
+        : '/static/images/book_original.png';
+    
+    const ratingHtml = book.rating 
+        ? `<p class="book-rating"><i class="fas fa-star"></i> ${book.rating.toFixed(1)}</p>`
+        : '';
+    
+    post.innerHTML = `
+        <div class="book-post-image">
+            <img src="${imageUrl}" alt="${book.title}" onerror="this.src='/static/images/book_original.png'">
+        </div>
+        <div class="book-post-content-wrapper">
+            <div class="book-post-header">
+                <div class="book-post-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>${book.seller_display || '未知'}</span>
+                </div>
+                <span class="book-post-date">${formatDate(book.created_at)}</span>
+            </div>
+            <div class="book-post-content">
+                <h3 class="book-title">${escapeHtml(book.title)}</h3>
+                <p class="book-author">作者 ${escapeHtml(book.author || '未知')}</p>
+                ${ratingHtml}
+            </div>
+            <div class="book-post-actions" onclick="event.stopPropagation();">
+                <button class="action-btn favorite-btn" onclick="toggleFavorite('${book.id}', this)" title="收藏">
+                    <i class="far fa-heart" id="favorite-icon-${book.id}"></i>
+                </button>
+                <button class="action-btn" onclick="openMessage('${book.id}')" title="私訊">
+                    <i class="fas fa-comment"></i>
+                </button>
+                <button class="action-btn" onclick="viewSellerProfile('${book.seller_email}')" title="賣家資料">
+                    <i class="fas fa-user-circle"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // 在設置 innerHTML 後添加點擊事件
+    post.addEventListener('click', function(e) {
+        // 如果點擊的是操作按鈕區域或其子元素，不觸發跳轉
+        if (e.target.closest('.book-post-actions')) {
+            return;
+        }
+        // 確保 book.id 存在
+        if (!book.id) {
+            console.error('書籍 ID 不存在，無法跳轉');
+            return;
+        }
+        // 確保 viewBookDetail 函數存在
+        if (typeof viewBookDetail === 'function') {
+            viewBookDetail(book.id);
+        } else {
+            window.location.href = '/book/' + book.id;
+        }
+    });
+    
+    return post;
+}
+
+// 設置無限滾動
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', () => {
+        // 如果處於搜尋模式，不執行無限滾動
+        if (isSearchMode) {
+            return;
+        }
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+            loadMoreBooks();
+        }
+    });
+}
+
+// 檢查收藏狀態
+async function checkFavoriteStatus(bookId) {
+    try {
+        const response = await fetch(`/api/favorite/${bookId}/check`);
+        const data = await response.json();
+        
+        if (data.success && data.is_favorited) {
+            favoriteStatuses[bookId] = true;
+            const icon = document.getElementById(`favorite-icon-${bookId}`);
+            if (icon) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                icon.closest('.favorite-btn').classList.add('favorited');
+            }
+        }
+    } catch (error) {
+        console.error('檢查收藏狀態失敗:', error);
+    }
+}
+
 // 切換收藏狀態
-function toggleFavorite(bookId, btn) {
+async function toggleFavorite(bookId, btn) {
     const icon = btn.querySelector('i');
-    if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        btn.classList.add('favorited');
-        // TODO: 發送到後端儲存收藏
-        console.log('收藏書籍:', bookId);
-    } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        btn.classList.remove('favorited');
-        // TODO: 發送到後端移除收藏
-        console.log('取消收藏:', bookId);
+    const isFavorited = favoriteStatuses[bookId] || icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                btn.classList.remove('favorited');
+                favoriteStatuses[bookId] = false;
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('favorited');
+                favoriteStatuses[bookId] = true;
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
     }
 }
 
 // 打開訊息
 function openMessage(bookId) {
-    // TODO: 打開與賣家的聊天視窗
     window.location.href = '/message?book_id=' + bookId;
 }
 
-// 查看書籍詳情
-function viewBookDetail(bookId) {
-    window.location.href = '/book/' + bookId;
-}
+// 查看書籍詳情（確保在全局作用域中）
+window.viewBookDetail = function(bookId) {
+    if (bookId) {
+        console.log('跳轉到書籍詳情頁面:', bookId);
+        window.location.href = '/book/' + bookId;
+    } else {
+        console.error('bookId 為空，無法跳轉');
+    }
+};
 
 // 查看賣家資料
 function viewSellerProfile(sellerEmail) {
-    // TODO: 顯示賣家資料
     window.location.href = '/profile?user=' + encodeURIComponent(sellerEmail);
 }
 
-// 顯示更多選項
-function showMoreOptions(bookId, btn) {
-    // 這裡可以添加下拉選單功能
-    alert('更多選項功能待實現，書籍 ID: ' + bookId);
+// 格式化日期（假設後端已轉換為 UTC+8）
+function formatDate(dateString) {
+    if (!dateString) return '';
+    try {
+        // 如果後端已經轉換為 UTC+8，直接解析即可
+        // 格式可能是 "YYYY-MM-DD HH:MM:SS" 或 ISO 格式
+        let date;
+        if (dateString.includes('T')) {
+            // ISO 格式，假設已經是 UTC+8
+            date = new Date(dateString);
+        } else {
+            // "YYYY-MM-DD HH:MM:SS" 格式，假設已經是 UTC+8
+            // 需要手動解析並設置為本地時間
+            const parts = dateString.split(' ');
+            if (parts.length >= 2) {
+                const datePart = parts[0].split('-');
+                const timePart = parts[1].split(':');
+                date = new Date(
+                    parseInt(datePart[0]),
+                    parseInt(datePart[1]) - 1,
+                    parseInt(datePart[2]),
+                    parseInt(timePart[0] || 0),
+                    parseInt(timePart[1] || 0),
+                    parseInt(timePart[2] || 0)
+                );
+            } else {
+                date = new Date(dateString);
+            }
+        }
+        
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return '剛剛';
+        if (minutes < 60) return `${minutes}分鐘前`;
+        if (hours < 24) return `${hours}小時前`;
+        if (days < 7) return `${days}天前`;
+        
+        return date.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' });
+    } catch (e) {
+        return dateString;
+    }
 }
+
+// 轉義 HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 確認函數已定義
+console.log('index.html 腳本載入完成');
+console.log('window.performGoogleBooksSearchImpl 已定義:', typeof window.performGoogleBooksSearchImpl === 'function');
+
 </script>
 {% endblock %}

@@ -2,6 +2,11 @@
 
 {% block title %}註冊 - 二手書平台{% endblock %}
 
+{% block head %}
+<!-- reCAPTCHA v2 -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="main-content">
     <div class="auth-container">
@@ -14,7 +19,11 @@
         {% if error %}
         <div class="alert alert-danger" role="alert">
             <i class="fas fa-exclamation-circle"></i>
-            該學號已被註冊，請使用其他學號。
+            {% if error is string %}
+                {{ error }}
+            {% else %}
+                該學號已被註冊，請使用其他學號。
+            {% endif %}
         </div>
         {% endif %}
 
@@ -26,11 +35,20 @@
         </div>
         {% endif %}
 
+        <!-- 郵件警告訊息 -->
+        {% if email_warning %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ email_warning }}
+        </div>
+        {% endif %}
+
         <form method="POST" action="/register" id="registerForm">
             <div class="form-section">
                 <div class="form-group">
                     <label for="std_num">臺科大學號:</label>
                     <input type="text" class="form-control" id="std_num" name="std_num" placeholder="請輸入學號" required autofocus>
+                    <div id="std_num-error" class="error-text"></div>
                 </div>
                 
                 <div class="form-group">
@@ -44,6 +62,12 @@
                     <label for="password-check">確認密碼:</label>
                     <input type="password" class="form-control" id="password-check" name="password-check" placeholder="請再次輸入密碼" required minlength="6">
                     <div id="password-match-error" class="error-text"></div>
+                </div>
+                
+                <!-- reCAPTCHA v2 -->
+                <div class="form-group">
+                    <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}" id="recaptcha"></div>
+                    <div id="recaptcha-error" class="error-text"></div>
                 </div>
             </div>
 
@@ -62,10 +86,12 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    const stdNumInput = document.getElementById("std_num");
     const passwordInput = document.getElementById("password");
     const passwordCheckInput = document.getElementById("password-check");
     const passwordError = document.getElementById("password-error");
     const passwordMatchError = document.getElementById("password-match-error");
+    const stdNumError = document.getElementById("std_num-error");
     const submitBtn = document.getElementById("submit-btn");
 
     function validatePassword() {
@@ -105,23 +131,67 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    function validateForm() {
-        const isPasswordValid = validatePassword();
-        const isMatch = checkPasswordMatch();
-        submitBtn.disabled = !(isPasswordValid && isMatch);
+    function validateStdNum() {
+        const stdNum = stdNumInput.value.trim();
+        if (!stdNum) {
+            stdNumError.textContent = "請輸入學號";
+            stdNumError.style.display = 'block';
+            return false;
+        } else {
+            stdNumError.textContent = "";
+            stdNumError.style.display = 'none';
+            return true;
+        }
     }
 
+    function validateForm() {
+        const isStdNumValid = validateStdNum();
+        const isPasswordValid = validatePassword();
+        const isMatch = checkPasswordMatch();
+        const isValid = isStdNumValid && isPasswordValid && isMatch;
+        submitBtn.disabled = !isValid;
+        return isValid;
+    }
+
+    stdNumInput.addEventListener("input", validateForm);
     passwordInput.addEventListener("input", validateForm);
     passwordCheckInput.addEventListener("input", validateForm);
     
     // 表單提交驗證
     document.getElementById('registerForm').addEventListener('submit', function(e) {
-        if (!validateForm() || submitBtn.disabled) {
+        console.log('表單提交事件觸發');
+        const isValid = validateForm();
+        console.log('表單驗證結果:', isValid);
+        console.log('提交按鈕狀態:', submitBtn.disabled);
+        
+        // 驗證 reCAPTCHA
+        const recaptchaResponse = grecaptcha.getResponse();
+        const recaptchaError = document.getElementById('recaptcha-error');
+        
+        if (!recaptchaResponse) {
             e.preventDefault();
+            recaptchaError.textContent = '請完成 reCAPTCHA 驗證';
+            recaptchaError.style.display = 'block';
+            alert('請完成 reCAPTCHA 驗證');
+            return false;
+        } else {
+            recaptchaError.textContent = '';
+            recaptchaError.style.display = 'none';
+        }
+        
+        if (!isValid || submitBtn.disabled) {
+            e.preventDefault();
+            console.log('阻止表單提交');
+            alert('請確認所有欄位都已正確填寫');
             return false;
         }
+        // 允許表單提交
+        console.log('允許表單提交');
         return true;
     });
+    
+    // 初始化時檢查表單狀態
+    validateForm();
 });
 </script>
 {% endblock %}

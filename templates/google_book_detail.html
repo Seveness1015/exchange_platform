@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ book_details.title }} - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="{% if search_query %}/?q={{ search_query|urlencode }}{% else %}/{% endif %}" class="back-btn" id="backBtn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">書籍詳情</h2>
+    </div>
+
+    {% if book_details %}
+    <!-- 書籍詳細資訊 -->
+    <div class="google-book-detail-section">
+        <div class="google-book-detail-card">
+            <div class="google-book-detail-cover">
+                {% if book_details.thumbnail %}
+                    <img src="{{ book_details.thumbnail }}" alt="{{ book_details.title }}" class="google-book-detail-image" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book_details.title }}" class="google-book-detail-image">
+                {% endif %}
+            </div>
+            <div class="google-book-detail-info">
+                <h2 class="google-book-detail-title">{{ book_details.title }}</h2>
+                
+                <div class="google-book-detail-meta">
+                    {% if book_details.authors %}
+                    <p class="google-book-detail-author">
+                        <i class="fas fa-user"></i>
+                        <span>作者：{% if book_details.authors is iterable and book_details.authors is not string %}{{ book_details.authors|join(', ') }}{% else %}{{ book_details.authors }}{% endif %}</span>
+                    </p>
+                    {% endif %}
+                    
+                    {% if book_details.publisher %}
+                    <p class="google-book-detail-publisher">
+                        <i class="fas fa-building"></i>
+                        <span>出版社：{{ book_details.publisher }}</span>
+                    </p>
+                    {% endif %}
+                    
+                    {% if book_details.published_date %}
+                    <p class="google-book-detail-date">
+                        <i class="fas fa-calendar"></i>
+                        <span>出版日期：{{ book_details.published_date }}</span>
+                    </p>
+                    {% endif %}
+                    
+                    {% if book_details.page_count %}
+                    <p class="google-book-detail-pages">
+                        <i class="fas fa-book-open"></i>
+                        <span>頁數：{{ book_details.page_count }} 頁</span>
+                    </p>
+                    {% endif %}
+                    
+                    {% if book_details.isbn %}
+                    <p class="google-book-detail-isbn">
+                        <i class="fas fa-barcode"></i>
+                        <span>ISBN：{{ book_details.isbn }}</span>
+                    </p>
+                    {% endif %}
+                    
+                    {% if book_details.language %}
+                    <p class="google-book-detail-language">
+                        <i class="fas fa-language"></i>
+                        <span>語言：{{ book_details.language }}</span>
+                    </p>
+                    {% endif %}
+                    
+                    {% if book_details.categories %}
+                    <p class="google-book-detail-categories">
+                        <i class="fas fa-tags"></i>
+                        <span>分類：{% if book_details.categories is iterable and book_details.categories is not string %}{{ book_details.categories|join(', ') }}{% else %}{{ book_details.categories }}{% endif %}</span>
+                    </p>
+                    {% endif %}
+                </div>
+                
+                {% if book_details.description %}
+                <div class="google-book-detail-description">
+                    <h4>內容簡介</h4>
+                    <p>{{ book_details.description }}</p>
+                </div>
+                {% endif %}
+                
+                {% if book_details.preview_link %}
+                <div class="google-book-detail-links">
+                    <a href="{{ book_details.preview_link }}" target="_blank" class="preview-link-btn">
+                        <i class="fas fa-external-link-alt"></i>
+                        <span>在 Google Books 預覽</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 書籍評價區塊 -->
+    {% if reviews %}
+    <div class="book-reviews-section">
+        <h3 class="section-title">
+            <i class="fas fa-star"></i>
+            書籍評價 ({{ reviews|length }})
+            {% if book_details.avg_rating %}
+            <span class="avg-rating-badge">
+                <i class="fas fa-star"></i>
+                {{ "%.1f"|format(book_details.avg_rating) }}
+            </span>
+            {% endif %}
+        </h3>
+        <div class="reviews-list">
+            {% for review in reviews %}
+            <div class="review-card">
+                <div class="review-header">
+                    <div class="review-rating">
+                        {% for i in range(1, 6) %}
+                            {% if i <= review.rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="rating-value">{{ review.rating }}</span>
+                    </div>
+                    <div class="review-meta">
+                        {% if review.course_name %}
+                        <p class="review-course">
+                            <i class="fas fa-graduation-cap"></i>
+                            {{ review.course_name }}
+                        </p>
+                        {% endif %}
+                        {% if review.instructor %}
+                        <p class="review-instructor">
+                            <i class="fas fa-user"></i>
+                            {{ review.instructor }}
+                        </p>
+                        {% endif %}
+                        {% if review.created_at %}
+                        <p class="review-date">
+                            <small>{{ review.created_at }}</small>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="review-content">
+                    <p>{{ review.review_content if review.review_content else '無詳細內容' }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 提供者列表 -->
+    <div class="providers-section">
+        <h3 class="section-title">
+            <i class="fas fa-users"></i>
+            提供此書的用戶 ({{ providers|length }})
+        </h3>
+        
+        {% if providers %}
+        <div class="book-list">
+            {% for provider in providers %}
+            <div class="book-card" onclick="viewBookDetail('{{ provider.id }}')" style="cursor: pointer;">
+                {% if provider.front_image and provider.front_image != '' and not provider.front_image.startswith('static/') %}
+                    <img src="{{ provider.front_image }}" alt="{{ provider.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ provider.title }}" class="book-cover">
+                {% endif %}
+                <div class="book-info">
+                    <h3 class="book-title">{{ provider.title }}</h3>
+                    <p class="book-author">作者 {{ provider.author if provider.author else '未知' }}</p>
+                    {% if provider.rating %}
+                    <p class="book-rating">
+                        <i class="fas fa-star"></i>
+                        {{ "%.1f"|format(provider.rating) }}
+                    </p>
+                    {% endif %}
+                    {% if provider.condition %}
+                    <p class="book-condition">
+                        <i class="fas fa-book"></i>
+                        書況：{{ provider.condition }}
+                    </p>
+                    {% endif %}
+                    {% if provider.exchange_method %}
+                    <p class="book-exchange">
+                        <i class="fas fa-exchange-alt"></i>
+                        {{ provider.exchange_method }}
+                    </p>
+                    {% endif %}
+                    <p class="book-seller">
+                        <i class="fas fa-store"></i>
+                        {{ provider.seller_display if provider.seller_display else '未知' }}
+                    </p>
+                </div>
+                <div class="book-actions" onclick="event.stopPropagation();">
+                    <button class="action-btn" onclick="toggleFavorite('{{ provider.id }}', this)" title="收藏">
+                        <i class="far fa-heart"></i>
+                    </button>
+                    <button class="action-btn" onclick="openMessage('{{ provider.id }}')" title="留言">
+                        <i class="fas fa-comment"></i>
+                    </button>
+                    <button class="action-btn" onclick="viewSellerProfile('{{ provider.seller_email }}')" title="賣家資料">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-books">
+            <i class="fas fa-book-open" style="font-size: 48px; color: var(--light-brown); margin-bottom: 15px;"></i>
+            <p>目前沒有人提供此書</p>
+            <p style="color: var(--light-brown); font-size: 14px;">成為第一個提供此書的人吧！</p>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="no-books">
+        <p>找不到書籍資訊</p>
+        <a href="{% if search_query %}/?q={{ search_query|urlencode }}{% else %}/{% endif %}" class="back-link">返回搜尋</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// 處理返回按鈕，記住搜尋狀態
+document.addEventListener('DOMContentLoaded', function() {
+    const backBtn = document.getElementById('backBtn');
+    const backLink = document.querySelector('.back-link');
+    
+    // 從 URL 參數獲取搜尋關鍵字
+    const urlParams = new URLSearchParams(window.location.search);
+    let searchQuery = urlParams.get('search');
+    
+    // 如果 URL 中沒有，嘗試從 sessionStorage 獲取
+    if (!searchQuery) {
+        searchQuery = sessionStorage.getItem('lastSearchQuery');
+    }
+    
+    // 如果有搜尋關鍵字，更新返回連結
+    if (searchQuery && backBtn) {
+        backBtn.href = `/?q=${encodeURIComponent(searchQuery)}`;
+    }
+    
+    if (searchQuery && backLink) {
+        backLink.href = `/?q=${encodeURIComponent(searchQuery)}`;
+    }
+});
+
+// 查看書籍詳情
+function viewBookDetail(bookId) {
+    window.location.href = '/book/' + bookId;
+}
+
+// 切換收藏狀態
+async function toggleFavorite(bookId, btn) {
+    const icon = btn.querySelector('i');
+    const isFavorited = icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                btn.classList.remove('favorited');
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('favorited');
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
+    }
+}
+
+// 打開訊息
+function openMessage(bookId) {
+    window.location.href = '/message?book_id=' + bookId;
+}
+
+// 查看賣家資料
+function viewSellerProfile(sellerEmail) {
+    window.location.href = '/profile?user=' + encodeURIComponent(sellerEmail);
+}
+
+// 頁面載入時檢查收藏狀態
+document.addEventListener('DOMContentLoaded', function() {
+    const favoriteButtons = document.querySelectorAll('.favorite-btn, .action-btn');
+    favoriteButtons.forEach(btn => {
+        const icon = btn.querySelector('i.fa-heart');
+        if (icon) {
+            const bookId = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+            if (bookId) {
+                checkFavoriteStatus(bookId, btn);
+            }
+        }
+    });
+});
+
+async function checkFavoriteStatus(bookId, btn) {
+    try {
+        const response = await fetch(`/api/favorite/${bookId}/check`);
+        const data = await response.json();
+        
+        if (data.success && data.is_favorited) {
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('favorited');
+            }
+        }
+    } catch (error) {
+        console.error('檢查收藏狀態失敗:', error);
+    }
+}
+</script>
+{% endblock %}
+

@@ -6,17 +6,29 @@
 <div class="main-content">
     <!-- 標題和返回按鈕 -->
     <div class="page-header">
+        {% if not is_own_profile %}
         <a href="/" class="back-btn">
             <i class="fas fa-arrow-left"></i>
+            <span>返回</span>
         </a>
+        {% else %}
         <h2 class="page-title">個人資料</h2>
+        {% endif %}
     </div>
+
+    <!-- 成功訊息 -->
+    {% if request.args.get('success') == 'profile_updated' %}
+    <div class="alert alert-success" role="alert" style="margin: 20px; padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 5px;">
+        <i class="fas fa-check-circle"></i>
+        個人資訊已成功更新！
+    </div>
+    {% endif %}
 
     <!-- 使用者資訊區塊 -->
     <div class="profile-header">
         <div class="profile-info-card">
             <div class="profile-avatar-section">
-                <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="使用者頭像" class="profile-avatar-large">
+                <img src="{{ url_for('static', filename='images/' + (user_avatar if user_avatar else 'user_cat01.png')) }}" alt="使用者頭像" class="profile-avatar-large">
             </div>
             <div class="profile-info-section">
                 <h3 class="profile-username">{{ user_display }}</h3>
@@ -161,11 +173,11 @@
             <div class="book-list">
                 {% if provided_books %}
                     {% for book in provided_books %}
-                    <div class="book-card">
+                    <div class="book-card" onclick="window.location.href='/book/{{ book.id }}'" style="cursor: pointer;">
                         {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
-                            <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
+                            <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
                         {% else %}
-                            <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-cover">
+                            <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }}" class="book-cover">
                         {% endif %}
                         <div class="book-info">
                             <h3 class="book-title">{{ book.title }}</h3>
@@ -177,7 +189,7 @@
                             </p>
                             {% endif %}
                         </div>
-                        <div class="book-actions">
+                        <div class="book-actions" onclick="event.stopPropagation();">
                             {% if is_own_profile %}
                             <div class="book-menu-container">
                                 <button class="action-btn" onclick="toggleBookMenu('{{ book.id }}', 'provided', event)" title="更多選項">
@@ -215,8 +227,8 @@
             <div class="book-list">
                 {% if needed_books %}
                     {% for book in needed_books %}
-                    <div class="book-card">
-                        <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.book_title }}" class="book-cover">
+                    <div class="book-card" onclick="window.location.href='/wanted_book/{{ book.id }}'" style="cursor: pointer;">
+                        <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.book_title }}" class="book-cover">
                         <div class="book-info">
                             <h3 class="book-title">{{ book.book_title if book.book_title else '未知書名' }}</h3>
                             <p class="book-author">作者 {{ book.author if book.author else '未知' }}</p>
@@ -236,7 +248,7 @@
                             <p class="book-remarks">{{ book.remarks }}</p>
                             {% endif %}
                         </div>
-                        <div class="book-actions">
+                        <div class="book-actions" onclick="event.stopPropagation();">
                             {% if is_own_profile %}
                             <div class="book-menu-container">
                                 <button class="action-btn" onclick="toggleBookMenu('{{ book.id }}', 'wanted', event)" title="更多選項">
@@ -274,30 +286,77 @@
             <div class="book-list">
                 {% if reviews %}
                     {% for review in reviews %}
-                    <div class="book-card">
+                    <div class="book-card" onclick="viewReviewDetail('{{ review.id }}', '{{ review.book_id if review.book_id else '' }}', '{{ review.book_title if review.book_title else '' }}')" style="cursor: pointer;">
                         <div class="book-info" style="flex: 1;">
                             <h3 class="book-title">{{ review.book_title if review.book_title else '未知書名' }}</h3>
-                            <p class="book-author-label">課程：{{ review.course_name if review.course_name else '未知' }}</p>
-                            <p class="book-author">
-                                <i class="fas fa-user"></i>
-                                {{ review.instructor if review.instructor else '未知老師' }}
-                            </p>
-                            <p class="book-author">
-                                <i class="fas fa-graduation-cap"></i>
-                                {{ review.department if review.department else '' }} - {{ review.major if review.major else '' }}
-                            </p>
+                            
+                            <!-- 書籍類型標籤 -->
+                            {% if review.book_type == 'extracurricular' %}
+                                <p class="book-author-label" style="color: var(--light-brown); font-weight: 500;">
+                                    <i class="fas fa-book-open"></i>
+                                    課外書
+                                </p>
+                            {% elif review.book_type == 'course' %}
+                                <p class="book-author-label" style="color: var(--light-brown); font-weight: 500;">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    課用書
+                                    {% if review.course_type == 'general' %}
+                                        - 通識課
+                                    {% elif review.course_type == 'language' %}
+                                        - 語文課
+                                    {% elif review.course_type == 'department' %}
+                                        - 系所課程
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            
+                            <!-- 評分 -->
                             <p class="book-rating">
                                 <i class="fas fa-star"></i>
                                 {{ review.rating if review.rating else 0 }}
                             </p>
+                            
+                            <!-- 課用書相關資訊 -->
+                            {% if review.book_type == 'course' %}
+                                {% if review.course_name %}
+                                <p class="book-author-label">
+                                    <i class="fas fa-book"></i>
+                                    課程：{{ review.course_name }}
+                                </p>
+                                {% endif %}
+                                
+                                {% if review.instructor %}
+                                <p class="book-author">
+                                    <i class="fas fa-user"></i>
+                                    授課老師：{{ review.instructor }}
+                                </p>
+                                {% endif %}
+                                
+                                <!-- 系所課程才顯示系所、科系、年級 -->
+                                {% if review.course_type == 'department' %}
+                                    {% if review.department or review.major %}
+                                    <p class="book-author">
+                                        <i class="fas fa-graduation-cap"></i>
+                                        {% if review.department %}{{ review.department }}{% endif %}
+                                        {% if review.department and review.major %} - {% endif %}
+                                        {% if review.major %}{{ review.major }}{% endif %}
+                                        {% if review.grade %} ({{ review.grade }}){% endif %}
+                                    </p>
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                            
+                            <!-- 詳細內容 -->
                             <p class="review-content">{{ review.review_content if review.review_content else '無詳細內容' }}</p>
+                            
+                            <!-- 創建時間 -->
                             {% if review.created_at %}
                             <p class="review-date">
                                 <small>{{ review.created_at }}</small>
                             </p>
                             {% endif %}
                         </div>
-                        <div class="book-actions">
+                        <div class="book-actions" onclick="event.stopPropagation();">
                             {% if is_own_profile %}
                             <div class="book-menu-container">
                                 <button class="action-btn" onclick="toggleBookMenu('{{ review.id }}', 'review', event)" title="更多選項">
@@ -502,6 +561,16 @@ function editBook(bookId, type) {
     window.location.href = '/edit_book/' + bookId;
 }
 
+// 查看換書資訊詳情（確保在全局作用域中）
+window.viewWantedBookDetail = function(wantedBookId) {
+    if (wantedBookId) {
+        console.log('跳轉到換書資訊詳情頁面:', wantedBookId);
+        window.location.href = '/wanted_book/' + wantedBookId;
+    } else {
+        console.error('wantedBookId 為空');
+    }
+};
+
 // 編輯想要書
 function editWantedBook(wantedBookId) {
     closeAllBookMenus();
@@ -509,6 +578,20 @@ function editWantedBook(wantedBookId) {
 }
 
 // 編輯書評
+// 查看書評詳情
+function viewReviewDetail(reviewId, bookId, bookTitle) {
+    if (bookId) {
+        // 如果有 book_id，跳轉到書籍詳情頁面
+        window.location.href = '/book/' + bookId;
+    } else if (bookTitle) {
+        // 如果沒有 book_id 但有書名，跳轉到搜尋結果頁面
+        window.location.href = '/?q=' + encodeURIComponent(bookTitle);
+    } else {
+        // 如果都沒有，跳轉到編輯書評頁面
+        window.location.href = '/edit_review/' + reviewId;
+    }
+}
+
 function editReview(reviewId) {
     closeAllBookMenus();
     window.location.href = '/edit_review/' + reviewId;

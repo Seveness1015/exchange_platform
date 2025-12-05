@@ -36,7 +36,13 @@
             
             <div class="form-group">
                 <label for="isbn">ISBN:</label>
-                <input type="text" class="form-control" id="isbn" name="isbn">
+                <div class="isbn-input-group">
+                    <input type="text" class="form-control" id="isbn" name="isbn" placeholder="將從條碼自動掃描或手動輸入">
+                    <button type="button" class="scan-isbn-quick-btn" onclick="openISBNScanner()">
+                        <i class="fas fa-barcode"></i>
+                        <span>掃描 ISBN 快速填入</span>
+                    </button>
+                </div>
             </div>
             
             <div class="form-group">
@@ -60,28 +66,96 @@
                 <textarea class="form-control" id="remarks" name="remarks" rows="3" placeholder="其他說明..."></textarea>
             </div>
             
-            <!-- 圖片上傳區域 -->
+            <!-- 圖片拍攝區域 -->
             <div class="image-upload-section">
-                <label>書籍圖片:</label>
-                <div class="image-upload-container">
-                    <div class="image-upload-box">
-                        <input type="file" id="front_image" name="front_image" accept="image/*" class="image-input" onchange="previewImage(this, 'front_preview')">
-                        <label for="front_image" class="image-upload-label">
-                            <i class="fas fa-camera"></i>
-                            <span id="front_preview" class="image-preview"></span>
-                        </label>
-                        <p class="image-hint">正面</p>
-                    </div>
-                    <div class="image-upload-box">
-                        <input type="file" id="back_image" name="back_image" accept="image/*" class="image-input" onchange="previewImage(this, 'back_preview')">
-                        <label for="back_image" class="image-upload-label">
-                            <i class="fas fa-camera"></i>
-                            <span id="back_preview" class="image-preview"></span>
-                        </label>
-                        <p class="image-hint">反面</p>
+                <label>書籍圖片（請使用相機拍攝）:</label>
+                
+                <!-- 相機權限提示 Modal -->
+                <div class="confirm-modal-overlay" id="cameraPermissionModal">
+                    <div class="confirm-modal">
+                        <div class="confirm-modal-header">
+                            <h4>
+                                <i class="fas fa-camera" style="margin-right: 8px;"></i>
+                                需要相機權限
+                            </h4>
+                        </div>
+                        <div class="confirm-modal-body">
+                            <p>為了拍攝書籍封面和封底，請授予相機使用權限</p>
+                            <p style="color: var(--light-brown); font-size: 13px; margin-top: 10px;">
+                                <i class="fas fa-info-circle"></i>
+                                請點擊下方按鈕後，在瀏覽器彈出的權限請求中選擇「允許」
+                            </p>
+                        </div>
+                        <div class="confirm-modal-footer">
+                            <button type="button" class="confirm-btn" style="background-color: var(--light-brown); color: white;" onclick="requestCameraPermission()">
+                                <i class="fas fa-check"></i>
+                                授予相機權限
+                            </button>
+                            <button type="button" class="confirm-btn" style="background-color: #e0e0e0; color: var(--text-dark);" onclick="closeCameraPermissionModal()">
+                                取消
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <p class="image-instruction">(請拍攝書籍正、反面)</p>
+                <div class="image-upload-container">
+                    <!-- 封面拍攝 -->
+                    <div class="image-upload-box">
+                        <div class="camera-controls">
+                            <button type="button" class="camera-btn" onclick="openCamera('front')">
+                                <i class="fas fa-camera"></i>
+                                <span>拍攝封面</span>
+                            </button>
+                        </div>
+                        <div id="front_camera_container" class="camera-container" style="display: none;">
+                            <div style="flex: 1; overflow: hidden; border-radius: 8px 8px 0 0;">
+                                <video id="front_camera" autoplay playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+                            </div>
+                            <canvas id="front_canvas" style="display: none;"></canvas>
+                            <div class="camera-actions">
+                                <button type="button" class="capture-btn" onclick="capturePhoto('front')">
+                            <i class="fas fa-camera"></i>
+                                    <span>拍照</span>
+                                </button>
+                                <button type="button" class="cancel-btn" onclick="closeCamera('front')">
+                                    <i class="fas fa-times"></i>
+                                    <span>取消</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="front_preview" class="image-preview"></div>
+                        <input type="file" id="front_image" name="front_image" accept="image/*" style="display: none;">
+                        <p class="image-hint">封面</p>
+                    </div>
+                    
+                    <!-- 封底拍攝 -->
+                    <div class="image-upload-box">
+                        <div class="camera-controls">
+                            <button type="button" class="camera-btn" onclick="openCamera('back')">
+                                <i class="fas fa-camera"></i>
+                                <span>拍攝封底</span>
+                            </button>
+                        </div>
+                        <div id="back_camera_container" class="camera-container" style="display: none;">
+                            <div style="flex: 1; overflow: hidden; border-radius: 8px 8px 0 0;">
+                                <video id="back_camera" autoplay playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+                            </div>
+                            <canvas id="back_canvas" style="display: none;"></canvas>
+                            <div class="camera-actions">
+                                <button type="button" class="capture-btn" onclick="capturePhoto('back')">
+                            <i class="fas fa-camera"></i>
+                                    <span>拍照</span>
+                                </button>
+                                <button type="button" class="cancel-btn" onclick="closeCamera('back')">
+                                    <i class="fas fa-times"></i>
+                                    <span>取消</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="back_preview" class="image-preview"></div>
+                        <input type="file" id="back_image" name="back_image" accept="image/*" style="display: none;">
+                        <p class="image-hint">封底</p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -106,9 +180,34 @@
                 </div>
             </div>
             
+            <!-- 書籍類型選擇 -->
+            <div class="form-group">
+                <label for="book_type">書籍類型:</label>
+                <select class="form-control" id="book_type" name="book_type" required onchange="toggleBookTypeFields()">
+                    <option value="">請選擇書籍類型</option>
+                    <option value="extracurricular">課外書</option>
+                    <option value="course">課用書</option>
+                </select>
+            </div>
+            
+            <!-- 課用書相關欄位 -->
+            <div id="courseBookFields" style="display: none;">
+                <!-- 課程類型選擇 -->
+                <div class="form-group">
+                    <label for="course_type">課程類型:</label>
+                    <select class="form-control" id="course_type" name="course_type" onchange="toggleCourseTypeFields()">
+                        <option value="">請選擇課程類型</option>
+                        <option value="general">通識課</option>
+                        <option value="language">語文課</option>
+                        <option value="department">系所課程</option>
+                    </select>
+                </div>
+                
+                <!-- 系所、科系、年級（僅系所課程需要） -->
+                <div id="departmentFields" style="display: none;">
             <div class="form-group">
                 <label for="department">系所:</label>
-                <select class="form-control" id="department" name="department" required onchange="updateMajors()">
+                        <select class="form-control" id="department" name="department" onchange="updateMajors()">
                     <option value="">請選擇系所</option>
                     <option value="工程學院">工程學院</option>
                     <option value="電資學院">電資學院</option>
@@ -122,14 +221,14 @@
             
             <div class="form-group">
                 <label for="major">科系:</label>
-                <select class="form-control" id="major" name="major" required>
+                        <select class="form-control" id="major" name="major">
                     <option value="">請先選擇系所</option>
                 </select>
             </div>
             
             <div class="form-group">
                 <label for="grade">年級:</label>
-                <select class="form-control" id="grade" name="grade" required>
+                        <select class="form-control" id="grade" name="grade">
                     <option value="">請選擇年級</option>
                     <option value="大一">大一</option>
                     <option value="大二">大二</option>
@@ -137,18 +236,22 @@
                     <option value="大四">大四</option>
                     <option value="研究所">研究所</option>
                 </select>
+                    </div>
             </div>
             
+                <!-- 課程名稱和授課老師（所有課用書都需要） -->
             <div class="form-group">
                 <label for="course_name">課程名稱:</label>
-                <input type="text" class="form-control" id="course_name" name="course_name" required>
+                    <input type="text" class="form-control" id="course_name" name="course_name">
             </div>
             
             <div class="form-group">
                 <label for="instructor">授課老師:</label>
-                <input type="text" class="form-control" id="instructor" name="instructor" required>
+                    <input type="text" class="form-control" id="instructor" name="instructor">
+                </div>
             </div>
             
+            <!-- 詳細內容（所有類型都需要） -->
             <div class="form-group">
                 <label for="review_content">詳細內容:</label>
                 <textarea class="form-control" id="review_content" name="review_content" rows="5" placeholder="請輸入詳細內容..." required></textarea>
@@ -314,7 +417,526 @@ function highlightStars(rating) {
     });
 }
 
-// 圖片預覽功能
+// 相機和條碼掃描功能
+let frontStream = null;
+let backStream = null;
+let frontImageData = null;
+let backImageData = null;
+let cameraPermissionGranted = false;
+
+// 檢查相機權限狀態
+async function checkCameraPermission() {
+    try {
+        // 檢查瀏覽器是否支援 MediaDevices API
+        // 在手機上，可能需要檢查多種方式
+        const hasMediaDevices = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+        const hasGetUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        
+        if (!hasMediaDevices && !hasGetUserMedia) {
+            console.warn('瀏覽器不支援相機功能');
+            // 檢查是否為 HTTPS 或 localhost
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!isSecure) {
+                console.warn('相機功能需要 HTTPS 環境');
+            }
+            return false;
+        }
+        
+        // 檢查權限狀態（如果瀏覽器支援 Permissions API）
+        // 注意：手機瀏覽器可能不支援此 API
+        if (navigator.permissions && navigator.permissions.query) {
+            try {
+                // 嘗試查詢相機權限
+                const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                console.log('權限狀態:', permissionStatus.state);
+                return permissionStatus.state === 'granted';
+            } catch (permError) {
+                // 如果查詢失敗（手機瀏覽器常見），返回 null 表示未知狀態
+                console.log('無法查詢權限狀態（可能不支援 Permissions API）:', permError);
+                return null;
+            }
+        }
+        
+        // 如果不支援權限查詢 API（手機瀏覽器常見），返回 null（未知狀態）
+        // 這樣會顯示權限提示，讓用戶主動授予權限
+        return null;
+    } catch (error) {
+        console.error('檢查相機權限時發生錯誤:', error);
+        // 發生錯誤時返回 null，讓用戶可以嘗試授予權限
+        return null;
+    }
+}
+
+// 顯示相機權限 Modal
+function showCameraPermissionModal() {
+    const modal = document.getElementById('cameraPermissionModal');
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // 防止背景滾動
+    }
+}
+
+// 關閉相機權限 Modal
+function closeCameraPermissionModal() {
+    const modal = document.getElementById('cameraPermissionModal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = ''; // 恢復滾動
+    }
+}
+
+// 請求相機權限（提前請求）
+async function requestCameraPermission() {
+    const modal = document.getElementById('cameraPermissionModal');
+    const permissionBtn = modal ? modal.querySelector('.confirm-btn[onclick="requestCameraPermission()"]') : null;
+    
+    try {
+        // 顯示載入狀態
+        if (permissionBtn) {
+            permissionBtn.disabled = true;
+            permissionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 請求中...';
+        }
+        
+        // 檢查瀏覽器是否支援
+        // 支援多種方式以兼容不同瀏覽器
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            // 檢查是否為 HTTPS（手機瀏覽器通常需要 HTTPS）
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!isSecure) {
+                throw new Error('相機功能需要 HTTPS 環境。請使用 HTTPS 訪問網站，或使用 ngrok 等工具建立 HTTPS 隧道。');
+            }
+            throw new Error('瀏覽器不支援相機功能。請確認使用最新版本的 Chrome、Safari 或 Firefox。');
+        }
+        
+        // 請求相機權限
+        // 在手機上，這會觸發瀏覽器的權限對話框
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment', // 後置相機
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+            
+            // 立即關閉流（我們只是為了獲取權限，不實際使用相機）
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                });
+            }
+        } catch (mediaError) {
+            // 如果標準方式失敗，嘗試使用更簡單的設定
+            console.log('嘗試使用簡化設定請求相機權限...');
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true // 使用最簡單的設定
+            });
+            
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                });
+            }
+        }
+        
+        // 權限已授予
+        cameraPermissionGranted = true;
+        
+        // 關閉 Modal
+        closeCameraPermissionModal();
+        
+        // 顯示成功訊息
+        showPermissionMessage('相機權限已授予！現在可以拍攝書籍照片了。', 'success');
+        
+        // 恢復按鈕（以防萬一）
+        if (permissionBtn) {
+            permissionBtn.disabled = false;
+            permissionBtn.innerHTML = '<i class="fas fa-check"></i> 授予相機權限';
+        }
+        
+    } catch (error) {
+        console.error('請求相機權限失敗:', error);
+        cameraPermissionGranted = false;
+        
+        let errorMessage = '無法獲取相機權限。';
+        let showInstructions = false;
+        
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            errorMessage = '相機權限被拒絕。';
+            showInstructions = true;
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            errorMessage = '未找到可用的相機設備。請確認設備有相機功能。';
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            errorMessage = '相機可能正被其他應用程式使用，請關閉其他使用相機的應用後重試。';
+        } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+            errorMessage = '相機不支援請求的設定，將使用預設設定。';
+            // 這種情況下，可以嘗試使用更簡單的設定
+            cameraPermissionGranted = true; // 假設權限已授予，只是設定問題
+        } else if (error.message && (error.message.includes('不支援') || error.message.includes('HTTPS'))) {
+            if (error.message.includes('HTTPS')) {
+                errorMessage = error.message;
+            } else {
+                // 檢查是否為 HTTPS 問題
+                const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (!isSecure) {
+                    errorMessage = '相機功能需要 HTTPS 環境。\n\n請使用以下方式之一：\n1. 使用 ngrok 建立 HTTPS 隧道\n2. 部署到支援 HTTPS 的伺服器\n3. 在本地使用 localhost（僅限開發）';
+                } else {
+                    errorMessage = '您的瀏覽器可能不支援相機功能。\n\n請確認：\n1. 使用最新版本的 Chrome、Safari 或 Firefox\n2. 瀏覽器已更新到最新版本\n3. 設備有相機功能';
+                }
+            }
+        } else {
+            errorMessage = `無法獲取相機權限：${error.message || error.name || '未知錯誤'}`;
+        }
+        
+        if (showInstructions) {
+            // 檢測是否為手機
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (isMobile) {
+                errorMessage += '\n\n請在瀏覽器設置中允許相機權限：\n';
+                if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    errorMessage += '設定 → Safari → 相機 → 允許';
+                } else {
+                    errorMessage += '設定 → 應用程式 → 瀏覽器 → 權限 → 相機 → 允許';
+                }
+            } else {
+                errorMessage += '\n\n請在瀏覽器地址欄左側的鎖頭圖標中允許相機權限。';
+            }
+        }
+        
+        showPermissionMessage(errorMessage, 'error');
+        
+        // 恢復按鈕
+        if (permissionBtn) {
+            permissionBtn.disabled = false;
+            permissionBtn.innerHTML = '<i class="fas fa-check"></i> 授予相機權限';
+        }
+    }
+}
+
+// 顯示權限訊息
+function showPermissionMessage(message, type) {
+    // 創建或更新訊息元素
+    let messageDiv = document.getElementById('cameraPermissionMessage');
+    if (!messageDiv) {
+        messageDiv = document.createElement('div');
+        messageDiv.id = 'cameraPermissionMessage';
+        messageDiv.className = 'camera-permission-message';
+        const uploadSection = document.querySelector('.image-upload-section');
+        if (uploadSection) {
+            uploadSection.insertBefore(messageDiv, uploadSection.firstChild);
+        }
+    }
+    
+    messageDiv.className = `camera-permission-message ${type}`;
+    messageDiv.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <span>${message}</span>
+        <button type="button" class="message-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // 3 秒後自動隱藏成功訊息
+    if (type === 'success') {
+        setTimeout(() => {
+            if (messageDiv && messageDiv.parentElement) {
+                messageDiv.remove();
+            }
+        }, 3000);
+    }
+}
+
+// 頁面載入時檢查相機權限
+document.addEventListener('DOMContentLoaded', async function() {
+    const modal = document.getElementById('cameraPermissionModal');
+    
+    // 檢查是否為手機設備
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    try {
+        const permissionStatus = await checkCameraPermission();
+        
+        if (permissionStatus === false) {
+            // 權限被拒絕或未授予，顯示 Modal
+            showCameraPermissionModal();
+        } else if (permissionStatus === true) {
+            // 權限已授予
+            cameraPermissionGranted = true;
+            closeCameraPermissionModal();
+        } else if (permissionStatus === null) {
+            // 無法確定狀態（手機瀏覽器常見）
+            // 在手機上，通常需要用戶主動授予權限，所以顯示 Modal
+            if (isMobile) {
+                showCameraPermissionModal();
+            } else {
+                // 在桌面瀏覽器上，如果無法確定狀態，也顯示 Modal 讓用戶可以提前授予
+                showCameraPermissionModal();
+            }
+        }
+    } catch (error) {
+        console.error('檢查權限時發生錯誤:', error);
+        // 發生錯誤時，顯示 Modal 讓用戶可以嘗試授予權限
+        showCameraPermissionModal();
+    }
+    
+    // 點擊 Modal 背景關閉
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeCameraPermissionModal();
+            }
+        });
+    }
+    
+    // ESC 鍵關閉 Modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+            closeCameraPermissionModal();
+        }
+    });
+});
+
+// 開啟相機
+async function openCamera(type) {
+    try {
+        const video = document.getElementById(`${type}_camera`);
+        const container = document.getElementById(`${type}_camera_container`);
+        // 找到對應的相機控制區域
+        const imageUploadBox = container.closest('.image-upload-box');
+        const cameraControls = imageUploadBox ? imageUploadBox.querySelector('.camera-controls') : null;
+        const cameraBtn = cameraControls ? cameraControls.querySelector('.camera-btn') : null;
+        
+        // 請求相機權限並開啟相機
+        // 如果已經有權限，直接使用；如果沒有，這裡會觸發權限請求
+        let stream;
+        
+        // 檢查是否支援相機功能（更寬鬆的檢查）
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            // 檢查是否為 HTTPS（手機瀏覽器通常需要 HTTPS）
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!isSecure) {
+                alert('相機功能需要 HTTPS 環境。\n\n請使用 ngrok 建立 HTTPS 隧道：\n1. 下載 ngrok\n2. 運行: ngrok http 5000\n3. 使用 ngrok 提供的 HTTPS URL 訪問');
+                return;
+            } else {
+                alert('瀏覽器可能不支援相機功能。\n\n請確認：\n1. 使用最新版本的 Chrome、Safari 或 Firefox\n2. 瀏覽器已更新到最新版本');
+                return;
+            }
+        }
+        
+        try {
+            // 先嘗試使用後置相機
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // 使用後置相機
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+            } catch (constraintError) {
+                // 如果後置相機不可用，嘗試使用預設相機
+                console.log('後置相機不可用，嘗試使用預設相機...', constraintError);
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true // 使用最簡單的設定
+                });
+            }
+            
+            // 權限已授予
+            cameraPermissionGranted = true;
+            
+            // 隱藏權限提示
+            closeCameraPermissionModal();
+        } catch (permError) {
+            console.error('無法獲取相機權限:', permError);
+            
+            // 顯示詳細的錯誤訊息
+            let errorMsg = '無法使用相機。';
+            if (permError.name === 'NotAllowedError' || permError.name === 'PermissionDeniedError') {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                if (isMobile) {
+                    errorMsg = '相機權限被拒絕。\n\n請在瀏覽器設置中允許相機權限，然後重新整理頁面。';
+                } else {
+                    errorMsg = '相機權限被拒絕。\n\n請在瀏覽器地址欄左側的鎖頭圖標中允許相機權限。';
+                }
+            } else if (permError.name === 'NotFoundError') {
+                errorMsg = '未找到可用的相機設備。';
+            } else if (permError.name === 'NotReadableError') {
+                errorMsg = '相機可能正被其他應用程式使用。';
+            } else if (permError.message && permError.message.includes('HTTPS')) {
+                errorMsg = permError.message + '\n\n請使用 ngrok 或其他工具建立 HTTPS 連接。';
+            } else if (permError.message && permError.message.includes('不支援')) {
+                const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (!isSecure) {
+                    errorMsg = '相機功能需要 HTTPS 環境。\n\n請使用 ngrok 建立 HTTPS 隧道，或部署到支援 HTTPS 的伺服器。';
+                } else {
+                    errorMsg = '瀏覽器可能不支援相機功能。\n\n請確認使用最新版本的 Chrome、Safari 或 Firefox。';
+                }
+            }
+            
+            alert(errorMsg);
+            return;
+        }
+        
+        if (type === 'front') {
+            frontStream = stream;
+        } else {
+            backStream = stream;
+        }
+        
+        video.srcObject = stream;
+        container.style.display = 'block';
+        if (cameraBtn) {
+            cameraBtn.style.display = 'none';
+        }
+        
+        // 如果是封面，顯示掃描 ISBN 按鈕
+        if (type === 'front' && cameraControls) {
+            const scanBtn = cameraControls.querySelector('.scan-isbn-btn');
+            if (scanBtn) {
+                scanBtn.style.display = 'inline-block';
+            }
+        }
+    } catch (error) {
+        console.error('無法開啟相機:', error);
+        alert('無法開啟相機，請確認已授予相機權限');
+    }
+}
+
+// 關閉相機
+function closeCamera(type) {
+    const video = document.getElementById(`${type}_camera`);
+    const container = document.getElementById(`${type}_camera_container`);
+    const cameraControls = container.previousElementSibling;
+    const cameraBtn = cameraControls ? cameraControls.querySelector('.camera-btn') : null;
+    
+    let stream = type === 'front' ? frontStream : backStream;
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        if (type === 'front') {
+            frontStream = null;
+        } else {
+            backStream = null;
+        }
+    }
+    
+    video.srcObject = null;
+    container.style.display = 'none';
+    if (cameraBtn) {
+        cameraBtn.style.display = 'inline-block';
+    }
+    
+    // 隱藏掃描按鈕
+    if (type === 'front' && cameraControls) {
+        const scanBtn = cameraControls.querySelector('.scan-isbn-btn');
+        if (scanBtn) {
+            scanBtn.style.display = 'none';
+        }
+    }
+}
+
+// 拍照
+function capturePhoto(type) {
+    const video = document.getElementById(`${type}_camera`);
+    const canvas = document.getElementById(`${type}_canvas`);
+    const preview = document.getElementById(`${type}_preview`);
+    const fileInput = document.getElementById(`${type}_image`);
+    
+    // 設置 canvas 尺寸
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // 繪製當前畫面到 canvas
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+        // 轉換為 blob 並顯示預覽（壓縮圖片以節省流量）
+        canvas.toBlob(function(blob) {
+            // 進一步壓縮圖片
+            compressAndSetImage(blob, type, preview, fileInput);
+            
+            // 關閉相機
+            closeCamera(type);
+        }, 'image/jpeg', 0.9);
+}
+
+// 圖片壓縮功能（節省流量）
+function compressAndSetImage(blob, type, preview, fileInput) {
+    // 創建圖片對象來讀取尺寸
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    
+    img.onload = function() {
+        // 計算壓縮後的尺寸（最大 1200x1600，保持長寬比）
+        const maxWidth = 1200;
+        const maxHeight = 1600;
+        let width = img.width;
+        let height = img.height;
+        
+        // 計算縮放比例
+        if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+        }
+        
+        // 創建壓縮用的 canvas
+        const compressCanvas = document.createElement('canvas');
+        compressCanvas.width = width;
+        compressCanvas.height = height;
+        const compressCtx = compressCanvas.getContext('2d');
+        
+        // 繪製壓縮後的圖片
+        compressCtx.drawImage(img, 0, 0, width, height);
+        
+        // 轉換為 blob（品質 0.85，平衡品質和檔案大小）
+        compressCanvas.toBlob(function(compressedBlob) {
+            const compressedUrl = URL.createObjectURL(compressedBlob);
+            preview.innerHTML = `<img src="${compressedUrl}" alt="預覽圖" class="preview-img">`;
+            
+            // 創建 File 對象並設置到 file input
+            const file = new File([compressedBlob], `${type}_image.jpg`, { type: 'image/jpeg' });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            
+            // 儲存圖片數據
+            if (type === 'front') {
+                frontImageData = compressedUrl;
+            } else {
+                backImageData = compressedUrl;
+            }
+            
+            // 釋放原始 URL
+            URL.revokeObjectURL(url);
+        }, 'image/jpeg', 0.85);
+    };
+    
+    img.onerror = function() {
+        // 如果壓縮失敗，使用原始 blob
+        const imageUrl = URL.createObjectURL(blob);
+        preview.innerHTML = `<img src="${imageUrl}" alt="預覽圖" class="preview-img">`;
+        
+        const file = new File([blob], `${type}_image.jpg`, { type: 'image/jpeg' });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        fileInput.files = dataTransfer.files;
+        
+        if (type === 'front') {
+            frontImageData = imageUrl;
+        } else {
+            backImageData = imageUrl;
+        }
+    };
+    
+    img.src = url;
+}
+
+// ISBN 掃描功能已移至 static/js/isbn_scanner.js
+// 使用 openISBNScanner() 開啟掃描器
+// 使用 fillBookInfoFromISBN(isbn) 根據 ISBN 填入書籍資訊
+
+// 圖片預覽功能（保留用於文件上傳備用）
 function previewImage(input, previewId) {
     const preview = document.getElementById(previewId);
     const file = input.files[0];
@@ -323,10 +945,75 @@ function previewImage(input, previewId) {
         const reader = new FileReader();
         reader.onload = function(e) {
             preview.innerHTML = `<img src="${e.target.result}" alt="預覽圖" class="preview-img">`;
+            
+            // 不再自動掃描 ISBN，ISBN 掃描已獨立為快速填入功能
         };
         reader.readAsDataURL(file);
     } else {
         preview.innerHTML = '';
+    }
+}
+
+// 移除舊的 scanISBNFromImage 函數，改用 isbn_scanner.js 中的函數
+// 舊函數已移至 static/js/isbn_scanner.js
+
+// 切換書籍類型相關欄位
+function toggleBookTypeFields() {
+    const bookType = document.getElementById('book_type').value;
+    const courseBookFields = document.getElementById('courseBookFields');
+    
+    if (bookType === 'course') {
+        // 課用書：顯示課用書相關欄位
+        courseBookFields.style.display = 'block';
+        // 重置課程類型選擇
+        document.getElementById('course_type').value = '';
+        toggleCourseTypeFields();
+    } else {
+        // 課外書：隱藏課用書相關欄位
+        courseBookFields.style.display = 'none';
+        // 清除課用書相關欄位的必填屬性
+        document.getElementById('course_type').removeAttribute('required');
+        document.getElementById('course_name').removeAttribute('required');
+        document.getElementById('instructor').removeAttribute('required');
+        document.getElementById('department').removeAttribute('required');
+        document.getElementById('major').removeAttribute('required');
+        document.getElementById('grade').removeAttribute('required');
+    }
+}
+
+// 切換課程類型相關欄位
+function toggleCourseTypeFields() {
+    const courseType = document.getElementById('course_type').value;
+    const departmentFields = document.getElementById('departmentFields');
+    const courseName = document.getElementById('course_name');
+    const instructor = document.getElementById('instructor');
+    
+    if (courseType === 'department') {
+        // 系所課程：顯示系所、科系、年級欄位
+        departmentFields.style.display = 'block';
+        document.getElementById('department').setAttribute('required', 'required');
+        document.getElementById('major').setAttribute('required', 'required');
+        document.getElementById('grade').setAttribute('required', 'required');
+    } else {
+        // 通識課或語文課：隱藏系所、科系、年級欄位
+        departmentFields.style.display = 'none';
+        document.getElementById('department').removeAttribute('required');
+        document.getElementById('major').removeAttribute('required');
+        document.getElementById('grade').removeAttribute('required');
+        // 清空這些欄位的值
+        document.getElementById('department').value = '';
+        document.getElementById('major').value = '';
+        document.getElementById('grade').value = '';
+        document.getElementById('major').innerHTML = '<option value="">請先選擇系所</option>';
+    }
+    
+    // 所有課用書都需要課程名稱和授課老師
+    if (courseType) {
+        courseName.setAttribute('required', 'required');
+        instructor.setAttribute('required', 'required');
+    } else {
+        courseName.removeAttribute('required');
+        instructor.removeAttribute('required');
     }
 }
 
@@ -337,38 +1024,85 @@ document.getElementById('addBookForm').addEventListener('submit', function(e) {
     const condition = document.getElementById('condition').value;
     const selectedRating = document.querySelector('.star-input:checked');
     const rating = selectedRating ? selectedRating.value : '4';
-    const department = document.getElementById('department').value;
-    const major = document.getElementById('major').value;
-    const grade = document.getElementById('grade').value;
-    const courseName = document.getElementById('course_name').value.trim();
-    const instructor = document.getElementById('instructor').value.trim();
+    const bookType = document.getElementById('book_type').value;
     const reviewContent = document.getElementById('review_content').value.trim();
     
+    // 基本驗證
     if (!bookTitle || !author || !condition) {
         e.preventDefault();
         alert('請填寫完整的書籍資訊');
         return false;
     }
     
-    if (!rating || !department || !major || !grade || !courseName || !instructor || !reviewContent) {
+    if (!bookType) {
         e.preventDefault();
-        if (!department) {
-            alert('請選擇系所');
-        } else if (!major || major === '請先選擇系所' || major === '請選擇科系') {
-            alert('請選擇科系');
-        } else {
-            alert('請填寫完整的評價資訊');
-        }
+        alert('請選擇書籍類型');
         return false;
     }
     
-    // 驗證科系是否屬於所選系所
-    if (department && departmentMajors[department]) {
-        const validMajors = departmentMajors[department];
-        if (!validMajors.includes(major)) {
+    if (!reviewContent) {
+        e.preventDefault();
+        alert('請輸入詳細內容');
+        return false;
+    }
+    
+    // 課用書的驗證
+    if (bookType === 'course') {
+        const courseType = document.getElementById('course_type').value;
+        const courseName = document.getElementById('course_name').value.trim();
+        const instructor = document.getElementById('instructor').value.trim();
+        
+        if (!courseType) {
             e.preventDefault();
-            alert('請選擇有效的科系');
+            alert('請選擇課程類型');
             return false;
+        }
+        
+        if (!courseName) {
+            e.preventDefault();
+            alert('請輸入課程名稱');
+            return false;
+        }
+        
+        if (!instructor) {
+            e.preventDefault();
+            alert('請輸入授課老師');
+            return false;
+        }
+        
+        // 系所課程需要驗證系所、科系、年級
+        if (courseType === 'department') {
+            const department = document.getElementById('department').value;
+            const major = document.getElementById('major').value;
+            const grade = document.getElementById('grade').value;
+            
+            if (!department) {
+                e.preventDefault();
+                alert('請選擇系所');
+                return false;
+            }
+            
+            if (!major || major === '請先選擇系所' || major === '請選擇科系') {
+                e.preventDefault();
+                alert('請選擇科系');
+                return false;
+            }
+            
+            if (!grade) {
+                e.preventDefault();
+                alert('請選擇年級');
+                return false;
+            }
+            
+            // 驗證科系是否屬於所選系所
+            if (department && departmentMajors[department]) {
+                const validMajors = departmentMajors[department];
+                if (!validMajors.includes(major)) {
+                    e.preventDefault();
+                    alert('請選擇有效的科系');
+                    return false;
+                }
+            }
         }
     }
     

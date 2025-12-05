@@ -17,11 +17,26 @@
     <div class="book-detail-section">
         <div class="book-detail-card">
             <div class="book-detail-cover">
-                {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
-                    <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-detail-image" onerror="this.src='{{ url_for('static', filename='images/user_cat01.png') }}'">
-                {% else %}
-                    <img src="{{ url_for('static', filename='images/user_cat01.png') }}" alt="{{ book.title }}" class="book-detail-image">
-                {% endif %}
+                <div class="book-images-container">
+                    <!-- 封面圖片 -->
+                    <div class="book-image-wrapper">
+                        <label class="book-image-label">封面</label>
+                        {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
+                            <img src="{{ book.front_image }}" alt="{{ book.title }} - 封面" class="book-detail-image" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }} - 封面" class="book-detail-image">
+                        {% endif %}
+                    </div>
+                    <!-- 封底圖片 -->
+                    <div class="book-image-wrapper">
+                        <label class="book-image-label">封底</label>
+                        {% if book.back_image and book.back_image != '' and not book.back_image.startswith('static/') %}
+                            <img src="{{ book.back_image }}" alt="{{ book.title }} - 封底" class="book-detail-image" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }} - 封底" class="book-detail-image">
+                        {% endif %}
+                    </div>
+                </div>
             </div>
             <div class="book-detail-info">
                 <h2 class="book-detail-title">{{ book.title }}</h2>
@@ -34,6 +49,35 @@
                     <p class="book-detail-isbn">
                         <i class="fas fa-barcode"></i>
                         <span>ISBN：{{ book.isbn }}</span>
+                    </p>
+                    {% endif %}
+                    {% if book.is_textbook %}
+                    <p class="book-detail-textbook">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>書籍類型：教科書</span>
+                    </p>
+                    {% if book.course_info_list %}
+                    <div class="book-detail-courses">
+                        {% for course_info in book.course_info_list %}
+                        <p class="book-detail-course">
+                            <i class="fas fa-book-reader"></i>
+                            <span>
+                                {% if course_info.course_name and course_info.instructor %}
+                                    課程：{{ course_info.course_name }} | 老師：{{ course_info.instructor }}
+                                {% elif course_info.course_name %}
+                                    課程：{{ course_info.course_name }}
+                                {% elif course_info.instructor %}
+                                    老師：{{ course_info.instructor }}
+                                {% endif %}
+                            </span>
+                        </p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <p class="book-detail-textbook">
+                        <i class="fas fa-book"></i>
+                        <span>書籍類型：課外書</span>
                     </p>
                     {% endif %}
                     {% if book.condition %}
@@ -141,23 +185,38 @@
 
 <script>
 // 收藏功能
-function toggleFavorite(bookId, btn) {
+async function toggleFavorite(bookId, btn) {
     const icon = btn.querySelector('i');
     const span = btn.querySelector('span');
-    if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        span.textContent = '已收藏';
-        btn.classList.add('favorited');
-        // TODO: 發送到後端儲存收藏
-        console.log('收藏書籍:', bookId);
-    } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        span.textContent = '收藏';
-        btn.classList.remove('favorited');
-        // TODO: 發送到後端移除收藏
-        console.log('取消收藏:', bookId);
+    const isFavorited = icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                span.textContent = '收藏';
+                btn.classList.remove('favorited');
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${bookId}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                span.textContent = '已收藏';
+                btn.classList.add('favorited');
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
     }
 }
 

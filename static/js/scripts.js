@@ -1,48 +1,75 @@
-// 搜尋功能
-document.addEventListener("DOMContentLoaded", function() {
-    const searchBtn = document.getElementById('searchBtn');
+// 執行 Google Books 搜尋（在首頁執行）
+function performGoogleBooksSearch() {
+    console.log('scripts.js performGoogleBooksSearch 被調用');
     const searchInput = document.getElementById('searchInput');
-    const aiBtn = document.getElementById('aiBtn');
-    
-    // 搜尋按鈕點擊事件
-    if (searchBtn) {
-        searchBtn.addEventListener('click', function() {
-            performSearch();
-        });
+    if (!searchInput) {
+        console.error('找不到搜尋輸入欄');
+        return;
     }
     
-    // 搜尋輸入欄 Enter 鍵事件
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
-    }
-    
-    // AI 按鈕點擊事件
-    if (aiBtn) {
-        aiBtn.addEventListener('click', function() {
-            // AI 推薦功能（待實現）
-            alert('AI 推薦功能即將推出！');
-        });
-    }
-});
-
-// 執行搜尋
-function performSearch() {
-    const searchType = document.getElementById('searchType').value;
-    const searchQuery = document.getElementById('searchInput').value.trim();
+    const searchQuery = searchInput.value.trim();
+    console.log('搜尋關鍵字:', searchQuery);
     
     if (!searchQuery) {
         alert('請輸入搜尋關鍵字');
         return;
     }
     
-    // 導航到搜尋結果頁面
-    const searchUrl = `/search?type=${encodeURIComponent(searchType)}&q=${encodeURIComponent(searchQuery)}`;
-    window.location.href = searchUrl;
+    // 如果頁面有 window.performGoogleBooksSearchImpl 函數（在 index.html 中定義），使用它
+    // 使用不同的函數名避免無限遞迴
+    if (typeof window.performGoogleBooksSearchImpl === 'function') {
+        console.log('調用 window.performGoogleBooksSearchImpl');
+        window.performGoogleBooksSearchImpl();
+    } else {
+        console.log('window.performGoogleBooksSearchImpl 不存在，導航到首頁');
+        // 如果不在首頁，導航到首頁並執行搜尋
+        window.location.href = `/?q=${encodeURIComponent(searchQuery)}`;
+    }
 }
+
+// 搜尋功能 - 使用 Google Books API
+document.addEventListener("DOMContentLoaded", function() {
+    console.log('scripts.js DOMContentLoaded 執行');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchInput = document.getElementById('searchInput');
+    const aiBtn = document.getElementById('aiBtn');
+    
+    console.log('searchBtn:', searchBtn);
+    console.log('searchInput:', searchInput);
+    console.log('window.performGoogleBooksSearchImpl:', typeof window.performGoogleBooksSearchImpl);
+    
+    // 搜尋按鈕點擊事件
+    if (searchBtn) {
+        searchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('搜尋按鈕被點擊');
+            performGoogleBooksSearch();
+        });
+    } else {
+        console.error('找不到搜尋按鈕');
+    }
+    
+    // 搜尋輸入欄 Enter 鍵事件
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                console.log('Enter 鍵被按下');
+                performGoogleBooksSearch();
+            }
+        });
+    } else {
+        console.error('找不到搜尋輸入欄');
+    }
+    
+    // AI 按鈕點擊事件
+    if (aiBtn) {
+        aiBtn.addEventListener('click', function() {
+            // 導航到 AI 推薦頁面
+            window.location.href = '/ai_recommend';
+        });
+    }
+});
 
 // 監聽 Offcanvas 開啟與關閉事件（如果存在）
 var offcanvasElement = document.getElementById('offcanvasLeft');

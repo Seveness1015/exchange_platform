@@ -28,14 +28,14 @@
                 <label for="book_title">書名:</label>
                 <input type="text" class="form-control" id="book_title" name="book_title" value="{{ review.book_title if review.book_title else '' }}" required>
             </div>
-            
+
             <!-- 星級評分 -->
             <div class="form-group">
                 <label>評分:</label>
                 <div class="rating-stars">
                     <input type="radio" id="star5" name="rating" value="5" class="star-input" {% if review.rating == 5 %}checked{% endif %}>
                     <label for="star5" class="star-label"><i class="fas fa-star"></i></label>
-                    <input type="radio" id="star4" name="rating" value="4" class="star-input" {% if review.rating == 4 %}checked{% endif %}>
+                    <input type="radio" id="star4" name="rating" value="4" class="star-input" {% if review.rating == 4 or not review.rating %}checked{% endif %}>
                     <label for="star4" class="star-label"><i class="fas fa-star"></i></label>
                     <input type="radio" id="star3" name="rating" value="3" class="star-input" {% if review.rating == 3 %}checked{% endif %}>
                     <label for="star3" class="star-label"><i class="fas fa-star"></i></label>
@@ -46,49 +46,80 @@
                 </div>
             </div>
             
+            <!-- 書籍類型選擇 -->
             <div class="form-group">
-                <label for="department">系所:</label>
-                <select class="form-control" id="department" name="department" required onchange="updateMajors()">
-                    <option value="">請選擇系所</option>
-                    <option value="工程學院" {% if review.department == '工程學院' %}selected{% endif %}>工程學院</option>
-                    <option value="電資學院" {% if review.department == '電資學院' %}selected{% endif %}>電資學院</option>
-                    <option value="管理學院" {% if review.department == '管理學院' %}selected{% endif %}>管理學院</option>
-                    <option value="設計學院" {% if review.department == '設計學院' %}selected{% endif %}>設計學院</option>
-                    <option value="人文社會學院" {% if review.department == '人文社會學院' %}selected{% endif %}>人文社會學院</option>
-                    <option value="應用科技學院" {% if review.department == '應用科技學院' %}selected{% endif %}>應用科技學院</option>
-                    <option value="產學創新學院" {% if review.department == '產學創新學院' %}selected{% endif %}>產學創新學院</option>
+                <label for="book_type">書籍類型:</label>
+                <select class="form-control" id="book_type" name="book_type" required onchange="toggleBookTypeFields()">
+                    <option value="">請選擇書籍類型</option>
+                    <option value="extracurricular" {% if review.book_type == 'extracurricular' or not review.book_type %}selected{% endif %}>課外書</option>
+                    <option value="course" {% if review.book_type == 'course' %}selected{% endif %}>課用書</option>
                 </select>
             </div>
             
-            <div class="form-group">
-                <label for="major">科系:</label>
-                <select class="form-control" id="major" name="major" required>
-                    <option value="">請先選擇系所</option>
-                </select>
+            
+            
+            <!-- 課用書相關欄位 -->
+            <div id="courseBookFields" style="display: none;">
+                <!-- 課程類型選擇 -->
+                <div class="form-group">
+                    <label for="course_type">課程類型:</label>
+                    <select class="form-control" id="course_type" name="course_type" onchange="toggleCourseTypeFields()">
+                        <option value="">請選擇課程類型</option>
+                        <option value="general" {% if review.course_type == 'general' %}selected{% endif %}>通識課</option>
+                        <option value="language" {% if review.course_type == 'language' %}selected{% endif %}>語文課</option>
+                        <option value="department" {% if review.course_type == 'department' %}selected{% endif %}>系所課程</option>
+                    </select>
+                </div>
+                
+                <!-- 系所、科系、年級（僅系所課程需要） -->
+                <div id="departmentFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="department">系所:</label>
+                        <select class="form-control" id="department" name="department" onchange="updateMajors()">
+                            <option value="">請選擇系所</option>
+                            <option value="工程學院" {% if review.department == '工程學院' %}selected{% endif %}>工程學院</option>
+                            <option value="電資學院" {% if review.department == '電資學院' %}selected{% endif %}>電資學院</option>
+                            <option value="管理學院" {% if review.department == '管理學院' %}selected{% endif %}>管理學院</option>
+                            <option value="設計學院" {% if review.department == '設計學院' %}selected{% endif %}>設計學院</option>
+                            <option value="人文社會學院" {% if review.department == '人文社會學院' %}selected{% endif %}>人文社會學院</option>
+                            <option value="應用科技學院" {% if review.department == '應用科技學院' %}selected{% endif %}>應用科技學院</option>
+                            <option value="產學創新學院" {% if review.department == '產學創新學院' %}selected{% endif %}>產學創新學院</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="major">科系:</label>
+                        <select class="form-control" id="major" name="major">
+                            <option value="">請先選擇系所</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="grade">年級:</label>
+                        <select class="form-control" id="grade" name="grade">
+                            <option value="">請選擇年級</option>
+                            <option value="大一" {% if review.grade == '大一' %}selected{% endif %}>大一</option>
+                            <option value="大二" {% if review.grade == '大二' %}selected{% endif %}>大二</option>
+                            <option value="大三" {% if review.grade == '大三' %}selected{% endif %}>大三</option>
+                            <option value="大四" {% if review.grade == '大四' %}selected{% endif %}>大四</option>
+                            <option value="研究所" {% if review.grade == '研究所' %}selected{% endif %}>研究所</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 課程名稱和授課老師（所有課用書都需要） -->
+                <div class="form-group">
+                    <label for="course_name">課程名稱:</label>
+                    <input type="text" class="form-control" id="course_name" name="course_name" value="{{ review.course_name if review.course_name else '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="instructor">授課老師:</label>
+                    <input type="text" class="form-control" id="instructor" name="instructor" value="{{ review.instructor if review.instructor else '' }}">
+                </div>
             </div>
             
-            <div class="form-group">
-                <label for="grade">年級:</label>
-                <select class="form-control" id="grade" name="grade" required>
-                    <option value="">請選擇年級</option>
-                    <option value="大一" {% if review.grade == '大一' %}selected{% endif %}>大一</option>
-                    <option value="大二" {% if review.grade == '大二' %}selected{% endif %}>大二</option>
-                    <option value="大三" {% if review.grade == '大三' %}selected{% endif %}>大三</option>
-                    <option value="大四" {% if review.grade == '大四' %}selected{% endif %}>大四</option>
-                    <option value="研究所" {% if review.grade == '研究所' %}selected{% endif %}>研究所</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="course_name">課程名稱:</label>
-                <input type="text" class="form-control" id="course_name" name="course_name" value="{{ review.course_name if review.course_name else '' }}" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="instructor">授課老師:</label>
-                <input type="text" class="form-control" id="instructor" name="instructor" value="{{ review.instructor if review.instructor else '' }}" required>
-            </div>
-            
+            <!-- 詳細內容（所有類型都需要） -->
             <div class="form-group">
                 <label for="review_content">詳細內容:</label>
                 <textarea class="form-control" id="review_content" name="review_content" rows="5" placeholder="請輸入詳細內容..." required>{{ review.review_content if review.review_content else '' }}</textarea>
@@ -191,10 +222,73 @@ function updateMajors() {
     }
 }
 
-// 頁面載入時初始化科系選項
+// 切換書籍類型相關欄位
+function toggleBookTypeFields() {
+    const bookType = document.getElementById('book_type').value;
+    const courseBookFields = document.getElementById('courseBookFields');
+    
+    if (bookType === 'course') {
+        // 課用書：顯示課用書相關欄位
+        courseBookFields.style.display = 'block';
+        // 觸發課程類型欄位更新
+        toggleCourseTypeFields();
+    } else {
+        // 課外書：隱藏課用書相關欄位
+        courseBookFields.style.display = 'none';
+        // 清除課用書相關欄位的必填屬性
+        document.getElementById('course_type').removeAttribute('required');
+        document.getElementById('course_name').removeAttribute('required');
+        document.getElementById('instructor').removeAttribute('required');
+        document.getElementById('department').removeAttribute('required');
+        document.getElementById('major').removeAttribute('required');
+        document.getElementById('grade').removeAttribute('required');
+    }
+}
+
+// 切換課程類型相關欄位
+function toggleCourseTypeFields() {
+    const courseType = document.getElementById('course_type').value;
+    const departmentFields = document.getElementById('departmentFields');
+    const courseName = document.getElementById('course_name');
+    const instructor = document.getElementById('instructor');
+    
+    if (courseType === 'department') {
+        // 系所課程：顯示系所、科系、年級欄位
+        departmentFields.style.display = 'block';
+        document.getElementById('department').setAttribute('required', 'required');
+        document.getElementById('major').setAttribute('required', 'required');
+        document.getElementById('grade').setAttribute('required', 'required');
+        // 更新科系選項
+        updateMajors();
+    } else {
+        // 通識課或語文課：隱藏系所、科系、年級欄位
+        departmentFields.style.display = 'none';
+        document.getElementById('department').removeAttribute('required');
+        document.getElementById('major').removeAttribute('required');
+        document.getElementById('grade').removeAttribute('required');
+    }
+    
+    // 所有課用書都需要課程名稱和授課老師
+    if (courseType) {
+        courseName.setAttribute('required', 'required');
+        instructor.setAttribute('required', 'required');
+    } else {
+        courseName.removeAttribute('required');
+        instructor.removeAttribute('required');
+    }
+}
+
+// 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化書籍類型欄位顯示
+    const bookType = document.getElementById('book_type').value;
+    if (bookType === 'course') {
+        toggleBookTypeFields();
+    }
+    
+    // 初始化科系選項
     const departmentSelect = document.getElementById('department');
-    if (departmentSelect.value) {
+    if (departmentSelect && departmentSelect.value) {
         updateMajors();
     }
 });
@@ -263,38 +357,85 @@ document.getElementById('editReviewForm').addEventListener('submit', function(e)
     const bookTitle = document.getElementById('book_title').value.trim();
     const selectedRating = document.querySelector('.star-input:checked');
     const rating = selectedRating ? selectedRating.value : '4';
-    const department = document.getElementById('department').value;
-    const major = document.getElementById('major').value;
-    const grade = document.getElementById('grade').value;
-    const courseName = document.getElementById('course_name').value.trim();
-    const instructor = document.getElementById('instructor').value.trim();
+    const bookType = document.getElementById('book_type').value;
     const reviewContent = document.getElementById('review_content').value.trim();
     
+    // 基本驗證
     if (!bookTitle) {
         e.preventDefault();
         alert('請輸入書名');
         return false;
     }
     
-    if (!rating || !department || !major || !grade || !courseName || !instructor || !reviewContent) {
+    if (!bookType) {
         e.preventDefault();
-        if (!department) {
-            alert('請選擇系所');
-        } else if (!major || major === '請先選擇系所' || major === '請選擇科系') {
-            alert('請選擇科系');
-        } else {
-            alert('請填寫完整的評價資訊');
-        }
+        alert('請選擇書籍類型');
         return false;
     }
     
-    // 驗證科系是否屬於所選系所
-    if (department && departmentMajors[department]) {
-        const validMajors = departmentMajors[department];
-        if (!validMajors.includes(major)) {
+    if (!reviewContent) {
+        e.preventDefault();
+        alert('請輸入詳細內容');
+        return false;
+    }
+    
+    // 課用書的驗證
+    if (bookType === 'course') {
+        const courseType = document.getElementById('course_type').value;
+        const courseName = document.getElementById('course_name').value.trim();
+        const instructor = document.getElementById('instructor').value.trim();
+        
+        if (!courseType) {
             e.preventDefault();
-            alert('請選擇有效的科系');
+            alert('請選擇課程類型');
             return false;
+        }
+        
+        if (!courseName) {
+            e.preventDefault();
+            alert('請輸入課程名稱');
+            return false;
+        }
+        
+        if (!instructor) {
+            e.preventDefault();
+            alert('請輸入授課老師');
+            return false;
+        }
+        
+        // 系所課程需要驗證系所、科系、年級
+        if (courseType === 'department') {
+            const department = document.getElementById('department').value;
+            const major = document.getElementById('major').value;
+            const grade = document.getElementById('grade').value;
+            
+            if (!department) {
+                e.preventDefault();
+                alert('請選擇系所');
+                return false;
+            }
+            
+            if (!major || major === '請先選擇系所' || major === '請選擇科系') {
+                e.preventDefault();
+                alert('請選擇科系');
+                return false;
+            }
+            
+            if (!grade) {
+                e.preventDefault();
+                alert('請選擇年級');
+                return false;
+            }
+            
+            // 驗證科系是否屬於所選系所
+            if (department && departmentMajors[department]) {
+                const validMajors = departmentMajors[department];
+                if (!validMajors.includes(major)) {
+                    e.preventDefault();
+                    alert('請選擇有效的科系');
+                    return false;
+                }
+            }
         }
     }
     
