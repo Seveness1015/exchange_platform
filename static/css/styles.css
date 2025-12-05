@@ -938,7 +938,7 @@ body {
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 3000;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     opacity: 0;
@@ -1145,6 +1145,31 @@ body {
     margin-bottom: 4px;
 }
 
+.bottom-nav-icon-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.bottom-nav-unread-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: var(--brown);
+    color: white;
+    border-radius: 50%;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    border: 2px solid white;
+    padding: 0 4px;
+    box-sizing: border-box;
+    line-height: 1;
+}
+
 .bottom-nav-item.active {
     color: var(--brown);
 }
@@ -1265,15 +1290,26 @@ body {
 
 .back-btn {
     color: var(--brown);
-    font-size: 20px;
+    font-size: 16px;
     text-decoration: none;
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
     transition: background-color 0.2s;
+    min-width: auto;
+    height: auto;
+}
+
+.back-btn span {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.back-btn i {
+    font-size: 18px;
 }
 
 .back-btn:hover {
@@ -2086,6 +2122,24 @@ select.form-control {
     color: var(--light-brown);
 }
 
+/* reCAPTCHA 樣式 */
+.g-recaptcha {
+    margin: 15px 0;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.g-recaptcha > div {
+    margin: 0 auto;
+}
+
+@media (max-width: 576px) {
+    .g-recaptcha {
+        transform: scale(0.85);
+        transform-origin: 0 0;
+    }
+}
+
 .error-text {
     display: none;
     margin-top: 5px;
@@ -2441,6 +2495,27 @@ body.auth-page .main-content {
     flex-shrink: 0;
 }
 
+.book-images-container {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.book-image-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.book-image-label {
+    font-size: 14px;
+    color: var(--brown);
+    font-weight: 500;
+    text-align: center;
+}
+
 .book-detail-image {
     width: 150px;
     height: 200px;
@@ -2474,6 +2549,37 @@ body.auth-page .main-content {
 
 .book-detail-meta i {
     color: var(--brown);
+    margin-right: 8px;
+    width: 20px;
+}
+
+.book-detail-textbook {
+    margin: 8px 0;
+    color: var(--text-dark);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.book-detail-textbook i {
+    color: var(--brown);
+    margin-right: 8px;
+    width: 20px;
+}
+
+.book-detail-courses {
+    margin: 8px 0 8px 28px;
+    padding-left: 12px;
+    border-left: 2px solid var(--secondary-beige);
+}
+
+.book-detail-course {
+    margin: 6px 0;
+    color: var(--text-dark);
+    font-size: 13px;
+}
+
+.book-detail-course i {
+    color: var(--light-brown);
     margin-right: 8px;
     width: 20px;
 }
@@ -2622,9 +2728,17 @@ body.auth-page .main-content {
         align-items: center;
     }
     
+    .book-images-container {
+        gap: 10px;
+    }
+    
     .book-detail-image {
         width: 120px;
         height: 160px;
+    }
+    
+    .book-image-label {
+        font-size: 12px;
     }
     
     .book-detail-title {
@@ -2714,5 +2828,1071 @@ body.auth-page .main-content {
     
     .action-menu-text p {
         font-size: 12px;
+    }
+}
+
+/* 私訊功能樣式 */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 200px);
+    max-height: 800px;
+    background-color: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chat-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--secondary-beige);
+    background-color: var(--primary-beige);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.transaction-reminder-btn {
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+}
+
+.transaction-reminder-btn:hover {
+    background-color: var(--dark-brown);
+}
+
+.transaction-reminder-btn i {
+    font-size: 16px;
+}
+
+.transaction-reminder-banner {
+    background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+    border-left: 4px solid var(--brown);
+    padding: 0;
+    margin: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.reminder-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.reminder-header:hover {
+    background-color: rgba(139, 115, 85, 0.1);
+}
+
+.reminder-icon {
+    font-size: 24px;
+    color: var(--brown);
+    flex-shrink: 0;
+}
+
+.reminder-title {
+    margin: 0;
+    color: var(--brown);
+    font-size: 16px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.reminder-toggle-icon {
+    font-size: 14px;
+    color: var(--brown);
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+.reminder-content {
+    padding: 0 20px 15px 20px;
+    border-top: 1px solid rgba(139, 115, 85, 0.2);
+    overflow: hidden;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 500px;
+    }
+}
+
+.reminder-details {
+    font-size: 14px;
+    color: #666;
+    padding-top: 15px;
+}
+
+.reminder-details p {
+    margin: 4px 0;
+}
+
+.reminder-details strong {
+    color: var(--dark-brown);
+}
+
+.complete-transaction-btn {
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    margin-top: 15px;
+    width: 100%;
+    justify-content: center;
+}
+
+.complete-transaction-btn:hover {
+    background-color: var(--dark-brown);
+}
+
+.transaction-reminder-modal {
+    max-width: 500px;
+    width: 90%;
+}
+
+.transaction-reminder-modal .form-group {
+    margin-bottom: 20px;
+}
+
+.transaction-reminder-modal .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--dark-brown);
+}
+
+.transaction-reminder-modal .form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--secondary-beige);
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.transaction-reminder-modal .form-control:focus {
+    outline: none;
+    border-color: var(--brown);
+    box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.1);
+}
+
+.transaction-reminder-modal textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-label span {
+    font-size: 14px;
+    color: #666;
+}
+
+/* 交易評價提示樣式 */
+.transaction-evaluation-prompt {
+    background: linear-gradient(135deg, #fff5e6 0%, #ffe8cc 100%);
+    border-left: 4px solid var(--brown);
+    padding: 15px 20px;
+    margin: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.evaluation-prompt-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.evaluation-prompt-icon {
+    font-size: 28px;
+    color: var(--brown);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(139, 115, 85, 0.1);
+    border-radius: 50%;
+}
+
+.evaluation-prompt-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.evaluation-prompt-text h4 {
+    margin: 0 0 4px 0;
+    color: var(--brown);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.evaluation-prompt-text p {
+    margin: 0;
+    color: var(--text-dark);
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.evaluation-prompt-btn {
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s, transform 0.1s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.evaluation-prompt-btn:hover {
+    background-color: var(--dark-brown);
+    transform: translateY(-1px);
+}
+
+.evaluation-prompt-btn:active {
+    transform: translateY(0);
+}
+
+.evaluation-prompt-btn:disabled {
+    background-color: var(--light-brown);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.evaluation-prompt-btn:disabled:hover {
+    transform: none;
+}
+
+/* 交易評價模態框樣式 */
+.transaction-evaluation-modal {
+    max-width: 500px;
+    width: 90%;
+}
+
+.transaction-evaluation-modal .rating-stars {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+.transaction-evaluation-modal .star-input {
+    display: none;
+}
+
+.transaction-evaluation-modal .star-label {
+    font-size: 28px;
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.transaction-evaluation-modal .star-label:hover,
+.transaction-evaluation-modal .star-input:checked ~ .star-label,
+.transaction-evaluation-modal .star-input:checked ~ .star-label ~ .star-label {
+    color: #FFD700;
+}
+
+.transaction-evaluation-modal .star-input:checked ~ .star-label {
+    color: #FFD700;
+}
+
+.transaction-evaluation-modal .form-group {
+    margin-bottom: 20px;
+}
+
+.transaction-evaluation-modal .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--dark-brown);
+}
+
+.transaction-evaluation-modal .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.transaction-evaluation-modal .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.transaction-evaluation-modal .checkbox-label span {
+    font-size: 14px;
+    color: var(--text-dark);
+}
+
+.chat-avatar-link {
+    display: inline-block;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.chat-avatar-link:hover {
+    opacity: 0.8;
+}
+
+.chat-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.chat-user-details {
+    flex: 1;
+}
+
+.chat-username {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0 0 4px 0;
+}
+
+.chat-book-title {
+    font-size: 13px;
+    color: var(--light-brown);
+    margin: 0;
+}
+
+.messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.message-item {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.message-item.message-sent {
+    justify-content: flex-end;
+}
+
+.message-item.message-received {
+    justify-content: flex-start;
+}
+
+.message-content {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    position: relative;
+}
+
+.message-sent .message-content {
+    background-color: var(--brown);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.message-received .message-content {
+    background-color: white;
+    color: var(--text-dark);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.message-text {
+    margin: 0 0 4px 0;
+    word-wrap: break-word;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.7;
+    display: block;
+    text-align: right;
+}
+
+.message-received .message-time {
+    text-align: left;
+}
+
+/* 訊息中的書籍上下文 */
+.message-book-context {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--brown);
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    background-color: rgba(139, 69, 19, 0.1);
+    border-radius: 4px;
+}
+
+.message-book-context i {
+    font-size: 11px;
+}
+
+.message-sent .message-book-context {
+    justify-content: flex-end;
+}
+
+.message-received .message-book-context {
+    justify-content: flex-start;
+}
+
+/* 書籍資訊卡片樣式（類似Shopee） */
+.message-book-card {
+    max-width: 280px;
+    background: white;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.message-book-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.book-card-image {
+    width: 60px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.book-card-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.book-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0 0 6px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+}
+
+.book-card-author {
+    font-size: 12px;
+    color: var(--light-brown);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.message-sent .message-book-card {
+    margin-left: auto;
+}
+
+.message-received .message-book-card {
+    margin-right: auto;
+}
+
+.no-messages {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--light-brown);
+}
+
+.message-input-container {
+    padding: 15px 20px;
+    border-top: 1px solid var(--secondary-beige);
+    background-color: white;
+}
+
+.message-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.message-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--secondary-beige);
+    border-radius: 20px;
+    font-size: 14px;
+    outline: none;
+}
+
+.message-input:focus {
+    border-color: var(--brown);
+}
+
+.message-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--brown);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.message-send-btn:hover {
+    background-color: var(--dark-brown);
+}
+
+/* 聊天列表樣式 */
+.chat-list-container {
+    background-color: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chat-list-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--secondary-beige);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.chat-list-item:hover {
+    background-color: var(--primary-beige);
+}
+
+.chat-list-item:last-child {
+    border-bottom: none;
+}
+
+.chat-list-avatar-wrapper {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.chat-list-avatar-wrapper:hover {
+    opacity: 0.8;
+}
+
+.chat-list-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.chat-list-unread-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--brown);
+    color: white;
+    border-radius: 50%;
+    min-width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    border: 2px solid white;
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+
+.chat-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.chat-list-username {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-list-time {
+    font-size: 12px;
+    color: var(--light-brown);
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+.chat-list-preview {
+    font-size: 14px;
+    color: var(--light-brown);
+    margin: 0 0 4px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-list-book {
+    font-size: 12px;
+    color: var(--brown);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.no-chats {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--light-brown);
+}
+
+/* 響應式設計 - 訊息 */
+@media (max-width: 480px) {
+    .chat-container {
+        height: calc(100vh - 150px);
+    }
+    
+    .message-content {
+        max-width: 85%;
+    }
+    
+    .chat-list-item {
+        padding: 12px 15px;
+    }
+    
+    .chat-list-avatar {
+        width: 45px;
+        height: 45px;
+    }
+}
+
+/* AI 推薦頁面樣式 */
+.ai-recommend-form-section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ai-recommend-form .form-group {
+    margin-bottom: 15px;
+}
+
+.ai-recommend-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.ai-recommend-form input,
+.ai-recommend-form select,
+.ai-recommend-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--secondary-beige);
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.ai-recommend-form input:focus,
+.ai-recommend-form select:focus,
+.ai-recommend-form textarea:focus {
+    outline: none;
+    border-color: var(--brown);
+}
+
+.ai-recommend-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.ai-recommend-form .form-text {
+    font-size: 12px;
+    color: var(--light-brown);
+    margin-top: 5px;
+    display: block;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--brown);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.3s;
+}
+
+.submit-btn:hover {
+    background: var(--dark-brown);
+}
+
+.submit-btn i {
+    margin-right: 8px;
+}
+
+.recommendations-section {
+    margin-top: 20px;
+}
+
+.recommendation-count {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--light-brown);
+}
+
+.recommendation-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+.recommendation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.recommendation-header {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.recommendation-cover {
+    flex-shrink: 0;
+}
+
+.recommendation-cover img {
+    width: 100px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.recommendation-info {
+    flex: 1;
+}
+
+.recommendation-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-dark);
+}
+
+.recommendation-author {
+    font-size: 14px;
+    color: var(--light-brown);
+    margin-bottom: 10px;
+}
+
+.recommendation-meta {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--light-brown);
+    flex-wrap: wrap;
+}
+
+.recommendation-rating,
+.recommendation-providers {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.recommendation-necessity {
+    margin-top: 10px;
+}
+
+.necessity-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.necessity-非常必要 {
+    background: #d4edda;
+    color: #155724;
+}
+
+.necessity-必要 {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.necessity-可選 {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.necessity-不必要 {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.recommendation-reason {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+.recommendation-reason-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.recommendation-reason-text {
+    line-height: 1.6;
+    color: var(--text-dark);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 100%;
+    overflow: visible;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.recommendation-reviews-preview {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--secondary-beige);
+}
+
+.recommendation-reviews-preview h5 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--text-dark);
+}
+
+.review-preview-item {
+    margin-bottom: 12px;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+}
+
+.review-preview-rating {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.review-preview-reviewer {
+    font-size: 12px;
+    color: var(--light-brown);
+    margin-left: 8px;
+}
+
+.review-preview-content {
+    font-size: 13px;
+    color: var(--text-dark);
+    line-height: 1.5;
+    margin: 0;
+    font-style: italic;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 100%;
+    overflow: visible;
+}
+
+.recommendation-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.action-btn-primary,
+.action-btn-secondary {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.action-btn-primary {
+    background: var(--brown);
+    color: white;
+}
+
+.action-btn-primary:hover {
+    background: var(--dark-brown);
+}
+
+.action-btn-secondary {
+    background: var(--secondary-beige);
+    color: var(--text-dark);
+}
+
+.action-btn-secondary:hover {
+    background: #e8e0d0;
+}
+
+.no-recommendations {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--light-brown);
+}
+
+.avg-rating-badge {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 10px;
+    background: var(--brown);
+    color: white;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* 響應式設計 - AI 推薦 */
+@media (max-width: 480px) {
+    .recommendation-header {
+        flex-direction: column;
+    }
+    
+    .recommendation-cover {
+        align-self: center;
+    }
+    
+    .recommendation-actions {
+        flex-direction: column;
+    }
+    
+    .action-btn-primary,
+    .action-btn-secondary {
+        width: 100%;
     }
 }

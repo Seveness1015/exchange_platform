@@ -339,7 +339,7 @@ function renderBooks(books, clearContainer = false) {
 function createBookPost(book) {
     const post = document.createElement('div');
     post.className = 'book-post';
-    post.onclick = () => viewBookDetail(book.id);
+    post.style.cursor = 'pointer';  // 添加指針樣式
     
     const imageUrl = (book.front_image && book.front_image !== '' && !book.front_image.startsWith('static/')) 
         ? book.front_image 
@@ -370,7 +370,7 @@ function createBookPost(book) {
                 <button class="action-btn favorite-btn" onclick="toggleFavorite('${book.id}', this)" title="收藏">
                     <i class="far fa-heart" id="favorite-icon-${book.id}"></i>
                 </button>
-                <button class="action-btn" onclick="openMessage('${book.id}')" title="留言">
+                <button class="action-btn" onclick="openMessage('${book.id}')" title="私訊">
                     <i class="fas fa-comment"></i>
                 </button>
                 <button class="action-btn" onclick="viewSellerProfile('${book.seller_email}')" title="賣家資料">
@@ -379,6 +379,25 @@ function createBookPost(book) {
             </div>
         </div>
     `;
+    
+    // 在設置 innerHTML 後添加點擊事件
+    post.addEventListener('click', function(e) {
+        // 如果點擊的是操作按鈕區域或其子元素，不觸發跳轉
+        if (e.target.closest('.book-post-actions')) {
+            return;
+        }
+        // 確保 book.id 存在
+        if (!book.id) {
+            console.error('書籍 ID 不存在，無法跳轉');
+            return;
+        }
+        // 確保 viewBookDetail 函數存在
+        if (typeof viewBookDetail === 'function') {
+            viewBookDetail(book.id);
+        } else {
+            window.location.href = '/book/' + book.id;
+        }
+    });
     
     return post;
 }
@@ -456,21 +475,51 @@ function openMessage(bookId) {
     window.location.href = '/message?book_id=' + bookId;
 }
 
-// 查看書籍詳情
-function viewBookDetail(bookId) {
-    window.location.href = '/book/' + bookId;
-}
+// 查看書籍詳情（確保在全局作用域中）
+window.viewBookDetail = function(bookId) {
+    if (bookId) {
+        console.log('跳轉到書籍詳情頁面:', bookId);
+        window.location.href = '/book/' + bookId;
+    } else {
+        console.error('bookId 為空，無法跳轉');
+    }
+};
 
 // 查看賣家資料
 function viewSellerProfile(sellerEmail) {
     window.location.href = '/profile?user=' + encodeURIComponent(sellerEmail);
 }
 
-// 格式化日期
+// 格式化日期（假設後端已轉換為 UTC+8）
 function formatDate(dateString) {
     if (!dateString) return '';
     try {
-        const date = new Date(dateString);
+        // 如果後端已經轉換為 UTC+8，直接解析即可
+        // 格式可能是 "YYYY-MM-DD HH:MM:SS" 或 ISO 格式
+        let date;
+        if (dateString.includes('T')) {
+            // ISO 格式，假設已經是 UTC+8
+            date = new Date(dateString);
+        } else {
+            // "YYYY-MM-DD HH:MM:SS" 格式，假設已經是 UTC+8
+            // 需要手動解析並設置為本地時間
+            const parts = dateString.split(' ');
+            if (parts.length >= 2) {
+                const datePart = parts[0].split('-');
+                const timePart = parts[1].split(':');
+                date = new Date(
+                    parseInt(datePart[0]),
+                    parseInt(datePart[1]) - 1,
+                    parseInt(datePart[2]),
+                    parseInt(timePart[0] || 0),
+                    parseInt(timePart[1] || 0),
+                    parseInt(timePart[2] || 0)
+                );
+            } else {
+                date = new Date(dateString);
+            }
+        }
+        
         const now = new Date();
         const diff = now - date;
         const minutes = Math.floor(diff / 60000);
@@ -482,7 +531,7 @@ function formatDate(dateString) {
         if (hours < 24) return `${hours}小時前`;
         if (days < 7) return `${days}天前`;
         
-        return date.toLocaleDateString('zh-TW');
+        return date.toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' });
     } catch (e) {
         return dateString;
     }

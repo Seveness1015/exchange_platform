@@ -65,8 +65,8 @@ document.addEventListener("DOMContentLoaded", function() {
     // AI 按鈕點擊事件
     if (aiBtn) {
         aiBtn.addEventListener('click', function() {
-            // AI 推薦功能（待實現）
-            alert('AI 推薦功能即將推出！');
+            // 導航到 AI 推薦頁面
+            window.location.href = '/ai_recommend';
         });
     }
 });

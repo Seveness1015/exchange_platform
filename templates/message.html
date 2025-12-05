@@ -1,6 +1,1015 @@
 {% extends 'base.html' %}
 
+{% block title %}訊息 - 二手書平台{% endblock %}
+
 {% block content %}
+<div class="main-content">
+  <!-- 標題和返回按鈕 -->
+  {% if not chat_id %}
+  <div class="page-header">
+    <h2 class="page-title">訊息</h2>
+  </div>
+  {% endif %}
 
+  {% if chat_id %}
+  <!-- 聊天室視圖 -->
+  <div class="chat-container">
+    <!-- 聊天對象資訊 -->
+    <div class="chat-header">
+      <div class="chat-user-info">
+        <a href="/profile?user={{ other_user }}" class="chat-avatar-link">
+          <img
+            src="{{ url_for('static', filename='images/' + (other_user_avatar if other_user_avatar else 'user_cat01.png')) }}"
+            alt="{{ other_user_display }}" class="chat-avatar">
+        </a>
+        <div class="chat-user-details">
+          <h3 class="chat-username">{{ other_user_display }}</h3>
+          {% if book_title %}
+          <p class="chat-book-title">
+            <i class="fas fa-book"></i>
+            {{ book_title }}
+          </p>
+          {% endif %}
+        </div>
+      </div>
+      <button class="transaction-reminder-btn" id="transactionReminderBtn" title="設定交易提醒">
+        <i class="fas fa-calendar-check"></i>
+        <span>設定交易提醒</span>
+      </button>
+    </div>
 
+    <!-- 交易提醒公告 -->
+    <div id="transactionReminderBanner" class="transaction-reminder-banner" style="display: none;">
+      <div class="reminder-header" id="reminderHeader" onclick="toggleReminderDetails()">
+        <div class="reminder-icon">
+          <i class="fas fa-calendar-alt"></i>
+        </div>
+        <h4 class="reminder-title">交易提醒</h4>
+        <i class="fas fa-chevron-down reminder-toggle-icon" id="reminderToggleIcon"></i>
+      </div>
+      <div class="reminder-content" id="reminderContent" style="display: none;">
+        <div class="reminder-details" id="reminderDetails">
+          <!-- 動態載入交易提醒資訊 -->
+        </div>
+        <button class="complete-transaction-btn" id="completeTransactionBtn" title="完成交易" style="display: none;">
+          <i class="fas fa-check-circle"></i>
+          <span>完成交易</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 交易完成後的評價提示 -->
+    <div id="transactionEvaluationPrompt" class="transaction-evaluation-prompt" style="display: none;">
+      <div class="evaluation-prompt-content">
+        <div class="evaluation-prompt-icon">
+          <i class="fas fa-star"></i>
+        </div>
+        <div class="evaluation-prompt-text">
+          <h4>交易已完成！</h4>
+          <p id="evaluationPromptText">請為此次交易填寫評價</p>
+        </div>
+        <button class="evaluation-prompt-btn" id="openEvaluationBtn" onclick="openTransactionEvaluationModal()">
+          <i class="fas fa-edit"></i>
+          <span id="evaluationBtnText">填寫評價</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 訊息列表 -->
+    <div class="messages-container" id="messagesContainer">
+      {% if messages %}
+      {% for message in messages %}
+      <div
+        class="message-item {% if message.sender_email == session.get('user') %}message-sent{% else %}message-received{% endif %}"
+        data-message-id="{{ message.id }}">
+        {% if message.is_book_info %}
+        <!-- 書籍資訊卡片（只顯示卡片，不顯示時間） -->
+        <div class="message-book-card" onclick="window.location.href='/book/{{ message.book_id }}'"
+          style="cursor: pointer;">
+          {% if message.book_image and message.book_image != '' and not message.book_image.startswith('static/') %}
+          <img src="{{ message.book_image }}" alt="{{ message.book_title }}" class="book-card-image"
+            onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+          {% else %}
+          <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ message.book_title }}"
+            class="book-card-image">
+          {% endif %}
+          <div class="book-card-info">
+            <h4 class="book-card-title">{{ message.book_title }}</h4>
+            {% if message.book_author %}
+            <p class="book-card-author">作者：{{ message.book_author }}</p>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <!-- 普通訊息 -->
+        {% if message.book_title and not message.is_book_info %}
+        <!-- 舊版書籍上下文顯示（向後兼容） -->
+        <div class="message-book-context">
+          <i class="fas fa-book"></i>
+          <span>{{ message.book_title }}</span>
+        </div>
+        {% endif %}
+        {% if message.content %}
+        <div class="message-content">
+          <p class="message-text">{{ message.content }}</p>
+          <span class="message-time">{{ message.created_at if message.created_at else '' }}</span>
+        </div>
+        {% else %}
+        <div class="message-content">
+          <span class="message-time">{{ message.created_at if message.created_at else '' }}</span>
+        </div>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="no-messages">
+        <p>還沒有訊息，開始對話吧！</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- 訊息輸入區 -->
+    <div class="message-input-container">
+      <form id="messageForm" class="message-form">
+        <input type="text" id="messageInput" class="message-input" placeholder="輸入訊息..." autocomplete="off">
+        <button type="submit" class="message-send-btn">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 交易提醒設定彈窗 -->
+  <div class="confirm-modal-overlay" id="transactionReminderModal" style="display: none;">
+    <div class="confirm-modal transaction-reminder-modal">
+      <div class="confirm-modal-header">
+        <h4>
+          <i class="fas fa-calendar-check" style="margin-right: 8px;"></i>
+          設定交易提醒
+        </h4>
+        <button class="action-menu-close" onclick="closeTransactionReminderModal()" type="button">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="confirm-modal-body">
+        <form id="transactionReminderForm">
+          <div class="form-group">
+            <label for="reminder_book_id">交易書籍：</label>
+            <select class="form-control" id="reminder_book_id" name="book_id" required>
+              <option value="">載入中...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reminder_datetime">交易時間：</label>
+            <input type="datetime-local" class="form-control" id="reminder_datetime" name="transaction_datetime"
+              required>
+          </div>
+          <div class="form-group">
+            <label for="reminder_location">交易地點：</label>
+            <input type="text" class="form-control" id="reminder_location" name="transaction_location"
+              placeholder="例如：圖書館門口" required>
+          </div>
+          <div class="form-group">
+            <label for="reminder_notes">其他備註：</label>
+            <textarea class="form-control" id="reminder_notes" name="notes" rows="3" placeholder="其他說明..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="reminder_email_notification" name="email_notification" value="true">
+              <span>寄送郵件提醒（交易當天會自動寄送提醒郵件）</span>
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="confirm-modal-footer">
+        <button type="button" class="confirm-btn cancel-btn" onclick="closeTransactionReminderModal()">取消</button>
+        <button type="button" class="confirm-btn" onclick="saveTransactionReminder()"
+          style="background-color: var(--brown); color: white;">
+          <i class="fas fa-save"></i>
+          儲存提醒
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 交易評價彈窗 -->
+  <div class="confirm-modal-overlay" id="transactionEvaluationModal" style="display: none;">
+    <div class="confirm-modal transaction-evaluation-modal">
+      <div class="confirm-modal-header">
+        <h4>
+          <i class="fas fa-star" style="margin-right: 8px;"></i>
+          填寫交易評價
+        </h4>
+        <button class="action-menu-close" onclick="closeEvaluationModal()" type="button">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="confirm-modal-body">
+        <form id="transactionEvaluationForm">
+          <div class="form-group">
+            <label>評分：</label>
+            <div class="rating-stars">
+              <input type="radio" id="eval-star5" name="rating" value="5" class="star-input">
+              <label for="eval-star5" class="star-label"><i class="fas fa-star"></i></label>
+              <input type="radio" id="eval-star4" name="rating" value="4" class="star-input" checked>
+              <label for="eval-star4" class="star-label"><i class="fas fa-star"></i></label>
+              <input type="radio" id="eval-star3" name="rating" value="3" class="star-input">
+              <label for="eval-star3" class="star-label"><i class="fas fa-star"></i></label>
+              <input type="radio" id="eval-star2" name="rating" value="2" class="star-input">
+              <label for="eval-star2" class="star-label"><i class="fas fa-star"></i></label>
+              <input type="radio" id="eval-star1" name="rating" value="1" class="star-input">
+              <label for="eval-star1" class="star-label"><i class="fas fa-star"></i></label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="eval_on_time" name="on_time" value="true">
+              <span>是否準時</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="eval_correct_item" name="correct_item" value="true">
+              <span>交易物品是否正確</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="eval_notes">其他備註：</label>
+            <textarea class="form-control" id="eval_notes" name="notes" rows="3" placeholder="其他說明..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="confirm-modal-footer">
+        <button type="button" class="confirm-btn cancel-btn" onclick="closeEvaluationModal()">取消</button>
+        <button type="button" class="confirm-btn" onclick="submitEvaluation()"
+          style="background-color: var(--brown); color: white;">
+          <i class="fas fa-check"></i>
+          提交評價
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatId = '{{ chat_id }}';
+    const bookId = '{{ book_id }}';  // 可選的書籍ID，用於發送訊息時關聯
+    const otherUser = '{{ other_user }}';  // 對方用戶email
+    const isSeller = {{ 'true' if is_seller else 'false' }};  // 當前用戶是否是賣家
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    let currentTransactionId = null;  // 當前交易ID
+    let currentEvaluationStatus = null;  // 當前評價狀態
+
+    // 發送訊息
+    messageForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const content = messageInput.value.trim();
+      if (!content) return;
+
+      try {
+        const requestBody = { content: content };
+        // 如果有書籍ID，添加到請求中
+        if (bookId) {
+          requestBody.book_id = bookId;
+        }
+
+        const response = await fetch(`/api/chat/${chatId}/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          messageInput.value = '';
+          // 添加新訊息到列表
+          addMessageToUI(data.message);
+          scrollToBottom();
+        } else {
+          alert('發送失敗：' + (data.error || '未知錯誤'));
+        }
+      } catch (error) {
+        console.error('發送訊息失敗:', error);
+        alert('發送訊息時發生錯誤，請稍後再試');
+      }
+    });
+
+    // 添加訊息到 UI
+    function addMessageToUI(message) {
+      // 檢查訊息是否已存在
+      if (message.id) {
+        const existingMessage = messagesContainer.querySelector(`[data-message-id="${message.id}"]`);
+        if (existingMessage) {
+          return; // 訊息已存在，不重複添加
+        }
+      }
+
+      const isSent = message.sender_email === '{{ session.get("user") }}';
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message-item ${isSent ? 'message-sent' : 'message-received'}`;
+
+      // 設置訊息 ID 屬性用於去重
+      if (message.id) {
+        messageDiv.setAttribute('data-message-id', message.id);
+      }
+
+      let messageHtml = '';
+      if (message.is_book_info) {
+        // 書籍資訊卡片（只顯示卡片，不顯示時間）
+        const bookImage = message.book_image && message.book_image !== '' && !message.book_image.startsWith('static/')
+          ? message.book_image
+          : '/static/images/book_original.png';
+        messageHtml = `
+                <div class="message-book-card" onclick="window.location.href='/book/${message.book_id}'" style="cursor: pointer;">
+                    <img src="${bookImage}" alt="${escapeHtml(message.book_title)}" class="book-card-image" onerror="this.src='/static/images/book_original.png'">
+                    <div class="book-card-info">
+                        <h4 class="book-card-title">${escapeHtml(message.book_title)}</h4>
+                        ${message.book_author ? `<p class="book-card-author">作者：${escapeHtml(message.book_author)}</p>` : ''}
+                    </div>
+                </div>
+            `;
+      } else {
+        // 普通訊息
+        let bookContextHtml = '';
+        if (message.book_title && !message.is_book_info) {
+          // 舊版書籍上下文顯示（向後兼容）
+          bookContextHtml = `
+                    <div class="message-book-context">
+                        <i class="fas fa-book"></i>
+                        <span>${escapeHtml(message.book_title)}</span>
+                    </div>
+                `;
+        }
+
+        const messageContentHtml = message.content
+          ? `<p class="message-text">${escapeHtml(message.content)}</p>`
+          : '';
+
+        messageHtml = `
+                ${bookContextHtml}
+                <div class="message-content">
+                    ${messageContentHtml}
+                    <span class="message-time">${message.created_at || ''}</span>
+                </div>
+            `;
+      }
+
+      messageDiv.innerHTML = messageHtml;
+      messagesContainer.appendChild(messageDiv);
+      scrollToBottom();
+    }
+
+    // 滾動到底部
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // HTML 轉義
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 頁面載入時滾動到底部
+    window.addEventListener('load', function () {
+      scrollToBottom();
+    });
+
+    // 定期刷新訊息（每 3 秒）
+    setInterval(async function () {
+      try {
+        const response = await fetch(`/api/chat/${chatId}/messages`);
+        const data = await response.json();
+        if (data.success && data.messages) {
+          // 獲取當前已顯示的訊息 ID
+          const currentMessageIds = new Set();
+          messagesContainer.querySelectorAll('.message-item[data-message-id]').forEach(el => {
+            const messageId = el.getAttribute('data-message-id');
+            if (messageId) {
+              currentMessageIds.add(messageId);
+            }
+          });
+
+          // 只添加新訊息
+          data.messages.forEach(message => {
+            if (message.id && !currentMessageIds.has(message.id)) {
+              addMessageToUI(message);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('刷新訊息失敗:', error);
+      }
+    }, 3000);
+
+    // 交易提醒相關功能
+    let currentReminder = null;
+
+    // 打開交易提醒設定彈窗
+    async function openTransactionReminderModal() {
+      console.log('openTransactionReminderModal 被調用');
+      const modal = document.getElementById('transactionReminderModal');
+      console.log('modal 元素:', modal);
+      if (!modal) {
+        console.error('找不到 transactionReminderModal 元素');
+        alert('無法找到彈窗元素，請刷新頁面重試');
+        return;
+      }
+
+      // 先設置 display: flex
+      modal.style.display = 'flex';
+      // 強制瀏覽器重排，確保 display 生效
+      void modal.offsetHeight;
+      // 使用 requestAnimationFrame 確保在下一幀添加 show 類
+      requestAnimationFrame(() => {
+        modal.classList.add('show');
+      });
+      document.body.style.overflow = 'hidden';
+
+      // 載入對方的書籍清單
+      await loadOtherUserBooks();
+
+      // 載入現有的交易提醒（如果有的話）
+      await loadTransactionReminder();
+    }
+
+    // 關閉交易提醒設定彈窗
+    function closeTransactionReminderModal() {
+      const modal = document.getElementById('transactionReminderModal');
+      if (modal) {
+        modal.classList.remove('show');
+        // 等待動畫完成後再隱藏
+        setTimeout(() => {
+          modal.style.display = 'none';
+        }, 300);
+        document.body.style.overflow = '';
+      }
+    }
+
+    // 載入當前用戶提供的書籍清單（雙方都可以使用）
+    async function loadOtherUserBooks() {
+      const bookSelect = document.getElementById('reminder_book_id');
+      if (!bookSelect) {
+        console.error('找不到 reminder_book_id 元素');
+        return;
+      }
+
+      try {
+        bookSelect.innerHTML = '<option value="">載入中...</option>';
+        console.log('正在載入當前用戶的書籍清單');
+
+        const response = await fetch('/api/my-books');
+        console.log('響應狀態:', response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log('響應數據:', data);
+
+        if (data.success && data.books && data.books.length > 0) {
+          bookSelect.innerHTML = '<option value="">請選擇書籍</option>';
+          data.books.forEach(book => {
+            const option = document.createElement('option');
+            option.value = book.id;
+            option.textContent = book.title + (book.author ? ` - ${book.author}` : '');
+            bookSelect.appendChild(option);
+          });
+          console.log(`成功載入 ${data.books.length} 本書籍`);
+        } else {
+          bookSelect.innerHTML = '<option value="">您目前沒有提供的書籍</option>';
+          console.log('當前用戶沒有提供的書籍');
+        }
+      } catch (error) {
+        console.error('載入書籍清單失敗:', error);
+        bookSelect.innerHTML = '<option value="">載入失敗，請稍後再試</option>';
+      }
+    }
+
+    // 載入現有的交易提醒
+    async function loadTransactionReminder() {
+      if (!chatId) return;
+      try {
+        const response = await fetch(`/api/chat/${chatId}/transaction_reminder`);
+        const data = await response.json();
+
+        if (data.success && data.reminder) {
+          currentReminder = data.reminder;
+          // 填充表單
+          document.getElementById('reminder_book_id').value = data.reminder.book_id || '';
+          if (data.reminder.transaction_datetime) {
+            // 將 UTC+8 時間轉換為本地時間格式（datetime-local 需要 YYYY-MM-DDTHH:mm 格式）
+            const dt = new Date(data.reminder.transaction_datetime);
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            const hours = String(dt.getHours()).padStart(2, '0');
+            const minutes = String(dt.getMinutes()).padStart(2, '0');
+            document.getElementById('reminder_datetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+          }
+          document.getElementById('reminder_location').value = data.reminder.transaction_location || '';
+          document.getElementById('reminder_notes').value = data.reminder.notes || '';
+          document.getElementById('reminder_email_notification').checked = data.reminder.email_notification || false;
+        } else {
+          // 清空表單
+          document.getElementById('reminder_book_id').value = '';
+          document.getElementById('reminder_datetime').value = '';
+          document.getElementById('reminder_location').value = '';
+          document.getElementById('reminder_notes').value = '';
+          document.getElementById('reminder_email_notification').checked = false;
+        }
+      } catch (error) {
+        console.error('載入交易提醒失敗:', error);
+      }
+    }
+
+    // 儲存交易提醒
+    async function saveTransactionReminder() {
+      if (!chatId) return;
+      const form = document.getElementById('transactionReminderForm');
+      if (!form) return;
+
+      const formData = new FormData(form);
+      const reminderData = {
+        book_id: formData.get('book_id'),
+        transaction_datetime: formData.get('transaction_datetime'),
+        transaction_location: formData.get('transaction_location'),
+        notes: formData.get('notes'),
+        email_notification: formData.get('email_notification') === 'true'
+      };
+
+      // 驗證
+      if (!reminderData.book_id || !reminderData.transaction_datetime || !reminderData.transaction_location) {
+        alert('請填寫完整的交易資訊');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}/transaction_reminder`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(reminderData)
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert('交易提醒已設定');
+          closeTransactionReminderModal();
+          // 重新載入交易提醒公告
+          await loadReminderBanner();
+        } else {
+          alert('設定失敗：' + (data.error || '未知錯誤'));
+        }
+      } catch (error) {
+        console.error('儲存交易提醒失敗:', error);
+        alert('儲存失敗，請稍後再試');
+      }
+    }
+
+    // 載入並顯示交易提醒公告
+    async function loadReminderBanner() {
+      if (!chatId) return;
+      try {
+        const response = await fetch(`/api/chat/${chatId}/transaction_reminder`);
+        const data = await response.json();
+
+        const banner = document.getElementById('transactionReminderBanner');
+        const details = document.getElementById('reminderDetails');
+
+        if (!banner || !details) return;
+
+        if (data.success && data.reminder) {
+          if (!data.reminder.completed) {
+            // 未完成的交易提醒
+            currentReminder = data.reminder;
+            banner.style.display = 'block';
+
+            // 檢查當前用戶是否是填寫者（created_by）
+            const currentUserEmail = '{{ session.get("user") }}';
+            const isCreator = data.reminder.created_by === currentUserEmail;
+            const completeBtn = document.getElementById('completeTransactionBtn');
+            if (completeBtn) {
+              completeBtn.style.display = isCreator ? 'flex' : 'none';
+            }
+
+            // 格式化時間（UTC+8）
+            let timeStr = '';
+            if (data.reminder.transaction_datetime) {
+              const dt = new Date(data.reminder.transaction_datetime);
+              const year = dt.getFullYear();
+              const month = String(dt.getMonth() + 1).padStart(2, '0');
+              const day = String(dt.getDate()).padStart(2, '0');
+              const hours = String(dt.getHours()).padStart(2, '0');
+              const minutes = String(dt.getMinutes()).padStart(2, '0');
+              timeStr = `${year}-${month}-${day} ${hours}:${minutes}`;
+            }
+
+            details.innerHTML = `
+                      <p><strong>書籍：</strong>${escapeHtml(data.reminder.book_title || '未知')}</p>
+                      <p><strong>時間：</strong>${timeStr}</p>
+                      <p><strong>地點：</strong>${escapeHtml(data.reminder.transaction_location || '')}</p>
+                      ${data.reminder.notes ? `<p><strong>備註：</strong>${escapeHtml(data.reminder.notes)}</p>` : ''}
+                  `;
+
+            // 預設摺疊狀態
+            const reminderContent = document.getElementById('reminderContent');
+            const toggleIcon = document.getElementById('reminderToggleIcon');
+            if (reminderContent) {
+              reminderContent.style.display = 'none';
+            }
+            if (toggleIcon) {
+              toggleIcon.classList.remove('fa-chevron-up');
+              toggleIcon.classList.add('fa-chevron-down');
+            }
+          } else {
+            // 已完成的交易提醒，隱藏公告
+            banner.style.display = 'none';
+            currentReminder = null;
+            const completeBtn = document.getElementById('completeTransactionBtn');
+            if (completeBtn) {
+              completeBtn.style.display = 'none';
+            }
+          }
+        } else {
+          banner.style.display = 'none';
+          currentReminder = null;
+          const completeBtn = document.getElementById('completeTransactionBtn');
+          if (completeBtn) {
+            completeBtn.style.display = 'none';
+          }
+        }
+      } catch (error) {
+        console.error('載入交易提醒公告失敗:', error);
+      }
+    }
+
+    // 完成交易
+    async function completeTransaction() {
+      if (!chatId) return;
+      if (!currentReminder || !currentReminder.book_id) {
+        alert('無法完成交易：缺少書籍資訊');
+        return;
+      }
+
+      // 檢查當前用戶是否是填寫者（created_by）
+      const currentUserEmail = '{{ session.get("user") }}';
+      if (currentReminder.created_by !== currentUserEmail) {
+        alert('只有填寫交易提醒的人可以完成交易');
+        return;
+      }
+
+      if (!confirm('確定要完成交易嗎？完成後將自動刪除該書籍，雙方都需要填寫評價。')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}/transaction_reminder/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            book_id: currentReminder.book_id
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert('交易已完成，書籍已刪除');
+          // 隱藏公告
+          const banner = document.getElementById('transactionReminderBanner');
+          if (banner) {
+            banner.style.display = 'none';
+          }
+          currentReminder = null;
+          // 顯示評價提示
+          if (data.transaction_id) {
+            showEvaluationPrompt(data.transaction_id);
+          }
+        } else {
+          alert('完成交易失敗：' + (data.error || '未知錯誤'));
+        }
+      } catch (error) {
+        console.error('完成交易失敗:', error);
+        alert('完成交易失敗，請稍後再試');
+      }
+    }
+
+    // 頁面載入時載入交易提醒公告和評價提示
+    if (chatId) {
+      window.addEventListener('load', function () {
+        loadReminderBanner();
+        loadEvaluationPrompt();
+      });
+    }
+
+    // 點擊彈窗背景關閉和綁定按鈕事件
+    document.addEventListener('DOMContentLoaded', function () {
+      const modal = document.getElementById('transactionReminderModal');
+      if (modal) {
+        modal.addEventListener('click', function (e) {
+          if (e.target === modal) {
+            closeTransactionReminderModal();
+          }
+        });
+      }
+
+      // 綁定按鈕點擊事件
+      const reminderBtn = document.getElementById('transactionReminderBtn');
+      if (reminderBtn) {
+        reminderBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('按鈕被點擊，調用 openTransactionReminderModal');
+          openTransactionReminderModal();
+        });
+      } else {
+        console.warn('找不到 transactionReminderBtn 按鈕');
+      }
+
+      // 綁定完成交易按鈕
+      const completeBtn = document.getElementById('completeTransactionBtn');
+      if (completeBtn) {
+        completeBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          completeTransaction();
+        });
+      }
+    });
+
+    // 切換交易提醒詳細資訊的顯示/隱藏
+    function toggleReminderDetails() {
+      const reminderContent = document.getElementById('reminderContent');
+      const toggleIcon = document.getElementById('reminderToggleIcon');
+
+      if (reminderContent && toggleIcon) {
+        if (reminderContent.style.display === 'none' || reminderContent.style.display === '') {
+          // 展開
+          reminderContent.style.display = 'block';
+          toggleIcon.classList.remove('fa-chevron-down');
+          toggleIcon.classList.add('fa-chevron-up');
+        } else {
+          // 摺疊
+          reminderContent.style.display = 'none';
+          toggleIcon.classList.remove('fa-chevron-up');
+          toggleIcon.classList.add('fa-chevron-down');
+        }
+      }
+    }
+
+    // 顯示評價提示
+    async function showEvaluationPrompt(transactionId) {
+      if (!transactionId) return;
+      currentTransactionId = transactionId;
+
+      const prompt = document.getElementById('transactionEvaluationPrompt');
+      if (!prompt) return;
+
+      // 檢查評價狀態
+      try {
+        const response = await fetch(`/api/transaction/${transactionId}/evaluation/status`);
+        const data = await response.json();
+
+        if (data.success) {
+          // 如果雙方都填寫了評價，不顯示提示
+          if (data.all_evaluated) {
+            prompt.style.display = 'none';
+            return;
+          }
+
+          currentEvaluationStatus = data;
+          if (data.has_evaluated) {
+            // 已填寫評價
+            document.getElementById('evaluationPromptText').textContent = '您已填寫評價';
+            document.getElementById('evaluationBtnText').textContent = '已填寫';
+            const btn = document.getElementById('openEvaluationBtn');
+            if (btn) {
+              btn.disabled = true;
+              btn.style.opacity = '0.6';
+            }
+          } else {
+            // 未填寫評價
+            document.getElementById('evaluationPromptText').textContent = '請為此次交易填寫評價';
+            document.getElementById('evaluationBtnText').textContent = '填寫評價';
+            const btn = document.getElementById('openEvaluationBtn');
+            if (btn) {
+              btn.disabled = false;
+              btn.style.opacity = '1';
+            }
+          }
+
+          prompt.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('獲取評價狀態失敗:', error);
+      }
+    }
+
+    // 打開評價模態框
+    async function openTransactionEvaluationModal() {
+      if (!currentTransactionId) {
+        alert('無法打開評價表單：缺少交易ID');
+        return;
+      }
+
+      const modal = document.getElementById('transactionEvaluationModal');
+      if (!modal) return;
+
+      // 檢查是否已填寫
+      if (currentEvaluationStatus && currentEvaluationStatus.has_evaluated) {
+        alert('您已經填寫過評價了');
+        return;
+      }
+
+      // 顯示模態框
+      modal.style.display = 'flex';
+      void modal.offsetHeight;
+      requestAnimationFrame(() => {
+        modal.classList.add('show');
+      });
+      document.body.style.overflow = 'hidden';
+    }
+
+    // 關閉評價模態框
+    function closeEvaluationModal() {
+      const modal = document.getElementById('transactionEvaluationModal');
+      if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => {
+          modal.style.display = 'none';
+        }, 300);
+        document.body.style.overflow = '';
+      }
+    }
+
+    // 提交評價
+    async function submitEvaluation() {
+      if (!currentTransactionId) {
+        alert('無法提交評價：缺少交易ID');
+        return;
+      }
+
+      const form = document.getElementById('transactionEvaluationForm');
+      if (!form) return;
+
+      const formData = new FormData(form);
+      const evaluationData = {
+        rating: parseInt(formData.get('rating') || '4'),
+        on_time: formData.get('on_time') === 'true',
+        correct_item: formData.get('correct_item') === 'true',
+        notes: formData.get('notes') || ''
+      };
+
+      if (!evaluationData.rating || evaluationData.rating < 1 || evaluationData.rating > 5) {
+        alert('請選擇評分');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/transaction/${currentTransactionId}/evaluation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(evaluationData)
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert('評價已提交');
+          closeEvaluationModal();
+          // 重新檢查評價狀態（包括雙方是否都填寫了）
+          const statusResponse = await fetch(`/api/transaction/${currentTransactionId}/evaluation/status`);
+          const statusData = await statusResponse.json();
+
+          if (statusData.success) {
+            currentEvaluationStatus = statusData;
+            // 如果雙方都填寫了評價，隱藏提示
+            if (statusData.all_evaluated) {
+              const prompt = document.getElementById('transactionEvaluationPrompt');
+              if (prompt) {
+                prompt.style.display = 'none';
+              }
+            } else {
+              // 只有當前用戶填寫了，更新提示狀態
+              document.getElementById('evaluationPromptText').textContent = '您已填寫評價';
+              document.getElementById('evaluationBtnText').textContent = '已填寫';
+              const btn = document.getElementById('openEvaluationBtn');
+              if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+              }
+            }
+          }
+        } else {
+          alert('提交失敗：' + (data.error || '未知錯誤'));
+        }
+      } catch (error) {
+        console.error('提交評價失敗:', error);
+        alert('提交評價時發生錯誤，請稍後再試');
+      }
+    }
+
+    // 載入評價提示（頁面載入時）
+    async function loadEvaluationPrompt() {
+      if (!chatId) return;
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}/transaction_reminder`);
+        const data = await response.json();
+
+        if (data.success && data.reminder && data.reminder.completed) {
+          // 交易已完成，檢查雙方是否都填寫了評價
+          const statusResponse = await fetch(`/api/transaction/${data.reminder.id}/evaluation/status`);
+          const statusData = await statusResponse.json();
+
+          if (statusData.success && statusData.all_evaluated) {
+            // 雙方都填寫了評價，不顯示提示
+            const prompt = document.getElementById('transactionEvaluationPrompt');
+            if (prompt) {
+              prompt.style.display = 'none';
+            }
+          } else {
+            // 還有未填寫的，顯示評價提示
+            await showEvaluationPrompt(data.reminder.id);
+          }
+        }
+      } catch (error) {
+        console.error('載入評價提示失敗:', error);
+      }
+    }
+
+    // 確保函數在全局作用域中可用
+    window.openTransactionReminderModal = openTransactionReminderModal;
+    window.closeTransactionReminderModal = closeTransactionReminderModal;
+    window.saveTransactionReminder = saveTransactionReminder;
+    window.completeTransaction = completeTransaction;
+    window.toggleReminderDetails = toggleReminderDetails;
+    window.openTransactionEvaluationModal = openTransactionEvaluationModal;
+    window.closeEvaluationModal = closeEvaluationModal;
+    window.submitEvaluation = submitEvaluation;
+
+    // 調試：檢查函數是否正確定義
+    console.log('交易提醒函數已定義:', {
+      openTransactionReminderModal: typeof openTransactionReminderModal,
+      closeTransactionReminderModal: typeof closeTransactionReminderModal,
+      saveTransactionReminder: typeof saveTransactionReminder,
+      completeTransaction: typeof completeTransaction,
+      toggleReminderDetails: typeof toggleReminderDetails
+    });
+  </script>
+
+  {% else %}
+  <!-- 聊天列表視圖 -->
+  <div class="chat-list-container">
+    {% if chat_list %}
+    {% for chat in chat_list %}
+    <div class="chat-list-item" onclick="window.location.href='/message?chat_id={{ chat.id }}'">
+      <div class="chat-list-avatar-wrapper"
+        onclick="event.stopPropagation(); window.location.href='/profile?user={{ chat.other_user }}';">
+        <img
+          src="{{ url_for('static', filename='images/' + (chat.other_user_avatar if chat.other_user_avatar else 'user_cat01.png')) }}"
+          alt="{{ chat.other_user_display }}" class="chat-list-avatar">
+        {% if chat.unread_count and chat.unread_count > 0 %}
+        <span class="chat-list-unread-badge">{{ chat.unread_count if chat.unread_count <= 99 else '99+' }}</span>
+            {% endif %}
+      </div>
+      <div class="chat-list-info">
+        <div class="chat-list-header">
+          <h3 class="chat-list-username">{{ chat.other_user_display }}</h3>
+          {% if chat.last_message_time %}
+          <span class="chat-list-time">{{ chat.last_message_time }}</span>
+          {% endif %}
+        </div>
+        {% if chat.last_message %}
+        <p class="chat-list-preview">{{ chat.last_message }}</p>
+        {% endif %}
+        {% if chat.recent_book_title %}
+        <p class="chat-list-book">
+          <i class="fas fa-book"></i>
+          {{ chat.recent_book_title }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="no-chats">
+      <i class="fas fa-comments" style="font-size: 48px; color: var(--light-brown); margin-bottom: 15px;"></i>
+      <p>還沒有任何對話</p>
+      <p style="color: var(--light-brown); font-size: 14px;">點擊「聯絡賣家」開始對話</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
 {% endblock %}

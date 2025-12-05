@@ -96,6 +96,62 @@
         </div>
     </div>
 
+    <!-- 書籍評價區塊 -->
+    {% if reviews %}
+    <div class="book-reviews-section">
+        <h3 class="section-title">
+            <i class="fas fa-star"></i>
+            書籍評價 ({{ reviews|length }})
+            {% if book_details.avg_rating %}
+            <span class="avg-rating-badge">
+                <i class="fas fa-star"></i>
+                {{ "%.1f"|format(book_details.avg_rating) }}
+            </span>
+            {% endif %}
+        </h3>
+        <div class="reviews-list">
+            {% for review in reviews %}
+            <div class="review-card">
+                <div class="review-header">
+                    <div class="review-rating">
+                        {% for i in range(1, 6) %}
+                            {% if i <= review.rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="rating-value">{{ review.rating }}</span>
+                    </div>
+                    <div class="review-meta">
+                        {% if review.course_name %}
+                        <p class="review-course">
+                            <i class="fas fa-graduation-cap"></i>
+                            {{ review.course_name }}
+                        </p>
+                        {% endif %}
+                        {% if review.instructor %}
+                        <p class="review-instructor">
+                            <i class="fas fa-user"></i>
+                            {{ review.instructor }}
+                        </p>
+                        {% endif %}
+                        {% if review.created_at %}
+                        <p class="review-date">
+                            <small>{{ review.created_at }}</small>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="review-content">
+                    <p>{{ review.review_content if review.review_content else '無詳細內容' }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 提供者列表 -->
     <div class="providers-section">
         <h3 class="section-title">

@@ -34,8 +34,11 @@
                 <i class="fas fa-plus-circle"></i>
                 <span>發布</span>
             </a>
-            <a href="/message" class="bottom-nav-item {% if request.path == '/message' %}active{% endif %}">
-                <i class="fas fa-comment"></i>
+            <a href="/message" class="bottom-nav-item {% if request.path == '/message' %}active{% endif %}" id="messageNavItem">
+                <div class="bottom-nav-icon-wrapper">
+                    <i class="fas fa-comment"></i>
+                    <span class="bottom-nav-unread-badge" id="unreadMessageBadge" style="display: none;">0</span>
+                </div>
                 <span>訊息</span>
             </a>
             <a href="/profile" class="bottom-nav-item {% if request.path == '/profile' %}active{% endif %}">
@@ -58,5 +61,48 @@
     {% if request.path == '/add_book' or '/edit_book/' in request.path %}
     <script src="{{ url_for('static', filename='js/isbn_scanner.js') }}"></script>
     {% endif %}
+    
+    <!-- 未讀訊息提示 -->
+    <script>
+    // 更新未讀訊息數量
+    async function updateUnreadMessageCount() {
+        try {
+            const response = await fetch('/api/unread-messages/count');
+            const data = await response.json();
+            if (data.success) {
+                const badge = document.getElementById('unreadMessageBadge');
+                const unreadCount = data.unread_count || 0;
+                
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('獲取未讀訊息數量失敗:', error);
+        }
+    }
+    
+    // 頁面載入時立即檢查
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateUnreadMessageCount);
+    } else {
+        updateUnreadMessageCount();
+    }
+    
+    // 定期更新未讀訊息數量（每 5 秒）
+    setInterval(updateUnreadMessageCount, 5000);
+    
+    // 當用戶點擊訊息按鈕時，延遲更新（等待頁面跳轉後）
+    const messageNavItem = document.getElementById('messageNavItem');
+    if (messageNavItem) {
+        messageNavItem.addEventListener('click', function() {
+            // 延遲更新，等待頁面跳轉並標記已讀後再更新
+            setTimeout(updateUnreadMessageCount, 2000);
+        });
+    }
+    </script>
 </body>
 </html>

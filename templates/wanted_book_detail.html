@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ wanted_book.book_title }} - 換書資訊詳情 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        {% if is_owner %}
+        <a href="/profile" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        {% else %}
+        <a href="/" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        {% endif %}
+        <h2 class="page-title">換書資訊詳情</h2>
+    </div>
+
+    {% if wanted_book %}
+    <div class="book-detail-container">
+        <!-- 書籍封面 -->
+        <div class="book-detail-cover">
+            <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ wanted_book.book_title }}" class="book-cover-large">
+        </div>
+
+        <!-- 書籍資訊 -->
+        <div class="book-detail-info">
+            <h2 class="book-detail-title">{{ wanted_book.book_title if wanted_book.book_title else '未知書名' }}</h2>
+            <div class="book-detail-meta">
+                <p class="book-detail-author">
+                    <i class="fas fa-user"></i>
+                    <span>作者：{{ wanted_book.author if wanted_book.author else '未知' }}</span>
+                </p>
+                {% if wanted_book.isbn %}
+                <p class="book-detail-isbn">
+                    <i class="fas fa-barcode"></i>
+                    <span>ISBN：{{ wanted_book.isbn }}</span>
+                </p>
+                {% endif %}
+                {% if wanted_book.exchange_method %}
+                <p class="book-detail-exchange">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>交換方式：{{ wanted_book.exchange_method }}</span>
+                </p>
+                {% endif %}
+                <p class="book-detail-seller">
+                    <i class="fas fa-user-circle"></i>
+                    <span>發布者：{{ requester_display }}</span>
+                </p>
+                {% if wanted_book.created_at %}
+                <p class="book-detail-date">
+                    <i class="fas fa-calendar"></i>
+                    <span>發布時間：{{ wanted_book.created_at }}</span>
+                </p>
+                {% endif %}
+            </div>
+            {% if wanted_book.remarks %}
+            <div class="book-detail-remarks">
+                <h4>其他備註</h4>
+                <p>{{ wanted_book.remarks }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 操作按鈕 -->
+        <div class="book-detail-actions">
+            {% if not is_owner %}
+            <button class="action-btn-large" onclick="contactRequester('{{ requester_email }}')">
+                <i class="fas fa-comment"></i>
+                <span>聯絡發布者</span>
+            </button>
+            <button class="action-btn-large" onclick="toggleFavorite('{{ wanted_book.id }}', this, 'wanted_book')">
+                <i class="{% if is_favorited %}fas{% else %}far{% endif %} fa-heart"></i>
+                <span>{% if is_favorited %}已收藏{% else %}收藏{% endif %}</span>
+            </button>
+            {% else %}
+            <button class="action-btn-large" onclick="window.location.href='/edit_wanted_book/{{ wanted_book.id }}'">
+                <i class="fas fa-edit"></i>
+                <span>編輯</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="no-books">
+        <p>找不到換書資訊</p>
+        <a href="/" class="back-link">返回首頁</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// 聯絡發布者
+function contactRequester(requesterEmail) {
+    window.location.href = '/message?user=' + encodeURIComponent(requesterEmail);
+}
+
+// 切換收藏狀態
+async function toggleFavorite(itemId, btn, itemType) {
+    const icon = btn.querySelector('i');
+    const span = btn.querySelector('span');
+    const isFavorited = icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${itemId}?type=${itemType}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                span.textContent = '收藏';
+            } else {
+                alert('取消收藏失敗：' + (data.error || '未知錯誤'));
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${itemId}?type=${itemType}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                span.textContent = '已收藏';
+            } else {
+                alert('收藏失敗：' + (data.error || '未知錯誤'));
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
+    }
+}
+</script>
+{% endblock %}
+

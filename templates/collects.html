@@ -1,13 +1,159 @@
 {% extends 'base.html' %}
 
-{% block content %}
+{% block title %}我的收藏 - 二手書平台{% endblock %}
 
-<!-- 主體內容 -->
-<div class="container text-center mt-5">
-    <h1>我的收藏❤️</h1>
-    <div class="row" id="favoritesContainer">
-        <!-- 這裡將由 JavaScript 動態填充收藏的物品 -->
+{% block content %}
+<div class="main-content">
+    <!-- 標題和返回按鈕 -->
+    <div class="page-header">
+        <a href="/" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h2 class="page-title">我的收藏</h2>
     </div>
+
+    <!-- 收藏的書籍 -->
+    {% if favorite_books %}
+    <div class="section-title" style="margin: 20px 0 10px 20px;">
+        <h3>收藏的書籍</h3>
+    </div>
+    <div class="book-list">
+        {% for book in favorite_books %}
+        <div class="book-card" onclick="viewBookDetail('{{ book.id }}')" style="cursor: pointer;">
+            {% if book.front_image and book.front_image != '' and not book.front_image.startswith('static/') %}
+                <img src="{{ book.front_image }}" alt="{{ book.title }}" class="book-cover" onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+            {% else %}
+                <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ book.title }}" class="book-cover">
+            {% endif %}
+            <div class="book-info">
+                <h3 class="book-title">{{ book.title }}</h3>
+                <p class="book-author">作者：{{ book.author if book.author else '未知' }}</p>
+                {% if book.rating %}
+                <p class="book-rating">
+                    <i class="fas fa-star"></i>
+                    {{ "%.1f"|format(book.rating) }}
+                </p>
+                {% endif %}
+                {% if book.favorite_created_at %}
+                <p class="book-date">
+                    <small>收藏於：{{ book.favorite_created_at }}</small>
+                </p>
+                {% endif %}
+            </div>
+            <div class="book-actions" onclick="event.stopPropagation();">
+                <button class="action-btn favorite-btn favorited" onclick="toggleFavorite('{{ book.id }}', this, 'book')" title="取消收藏">
+                    <i class="fas fa-heart"></i>
+                </button>
+                <button class="action-btn" onclick="viewBookDetail('{{ book.id }}')" title="查看詳情">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 收藏的換書資訊 -->
+    {% if favorite_wanted_books %}
+    <div class="section-title" style="margin: 20px 0 10px 20px;">
+        <h3>收藏的換書資訊</h3>
+    </div>
+    <div class="book-list">
+        {% for wanted_book in favorite_wanted_books %}
+        <div class="book-card">
+            <img src="{{ url_for('static', filename='images/book_original.png') }}" alt="{{ wanted_book.book_title }}" class="book-cover" onclick="viewWantedBookDetail('{{ wanted_book.id }}')">
+            <div class="book-info">
+                <h3 class="book-title" onclick="viewWantedBookDetail('{{ wanted_book.id }}')">{{ wanted_book.book_title if wanted_book.book_title else '未知書名' }}</h3>
+                <p class="book-author">作者：{{ wanted_book.author if wanted_book.author else '未知' }}</p>
+                {% if wanted_book.exchange_method %}
+                <p class="book-author">
+                    <i class="fas fa-exchange-alt"></i>
+                    交換方式：{{ wanted_book.exchange_method }}
+                </p>
+                {% endif %}
+                {% if wanted_book.favorite_created_at %}
+                <p class="book-date">
+                    <small>收藏於：{{ wanted_book.favorite_created_at }}</small>
+                </p>
+                {% endif %}
+            </div>
+            <div class="book-actions">
+                <button class="action-btn favorite-btn favorited" onclick="toggleFavorite('{{ wanted_book.id }}', this, 'wanted_book')" title="取消收藏">
+                    <i class="fas fa-heart"></i>
+                </button>
+                <button class="action-btn" onclick="viewWantedBookDetail('{{ wanted_book.id }}')" title="查看詳情">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 沒有收藏 -->
+    {% if not favorite_books and not favorite_wanted_books %}
+    <div class="no-books" style="text-align: center; padding: 40px 20px;">
+        <p style="font-size: 18px; color: var(--light-brown); margin-bottom: 10px;">目前沒有收藏</p>
+        <p style="color: #999;">在瀏覽書籍或換書資訊時，點擊愛心圖示即可收藏</p>
+    </div>
+    {% endif %}
 </div>
 
+<script>
+// 查看書籍詳情（確保在全局作用域中）
+window.viewBookDetail = function(bookId) {
+    if (bookId) {
+        window.location.href = '/book/' + bookId;
+    }
+};
+
+// 查看換書資訊詳情（確保在全局作用域中）
+window.viewWantedBookDetail = function(wantedBookId) {
+    if (wantedBookId) {
+        console.log('跳轉到換書資訊詳情頁面:', wantedBookId);
+        window.location.href = '/wanted_book/' + wantedBookId;
+    } else {
+        console.error('wantedBookId 為空');
+    }
+};
+
+// 切換收藏狀態
+async function toggleFavorite(itemId, btn, itemType) {
+    const icon = btn.querySelector('i');
+    const isFavorited = icon.classList.contains('fas');
+    
+    try {
+        if (isFavorited) {
+            // 取消收藏
+            const response = await fetch(`/api/favorite/${itemId}?type=${itemType}`, { method: 'DELETE' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                btn.classList.remove('favorited');
+                // 重新載入頁面以更新列表
+                window.location.reload();
+            } else {
+                alert('取消收藏失敗：' + (data.error || '未知錯誤'));
+            }
+        } else {
+            // 添加收藏
+            const response = await fetch(`/api/favorite/${itemId}?type=${itemType}`, { method: 'POST' });
+            const data = await response.json();
+            
+            if (data.success) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('favorited');
+            } else {
+                alert('收藏失敗：' + (data.error || '未知錯誤'));
+            }
+        }
+    } catch (error) {
+        console.error('切換收藏狀態失敗:', error);
+        alert('操作失敗，請稍後再試');
+    }
+}
+</script>
 {% endblock %}

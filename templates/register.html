@@ -2,6 +2,11 @@
 
 {% block title %}註冊 - 二手書平台{% endblock %}
 
+{% block head %}
+<!-- reCAPTCHA v2 -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endblock %}
+
 {% block content %}
 <div class="main-content">
     <div class="auth-container">
@@ -57,6 +62,12 @@
                     <label for="password-check">確認密碼:</label>
                     <input type="password" class="form-control" id="password-check" name="password-check" placeholder="請再次輸入密碼" required minlength="6">
                     <div id="password-match-error" class="error-text"></div>
+                </div>
+                
+                <!-- reCAPTCHA v2 -->
+                <div class="form-group">
+                    <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}" id="recaptcha"></div>
+                    <div id="recaptcha-error" class="error-text"></div>
                 </div>
             </div>
 
@@ -152,6 +163,21 @@ document.addEventListener("DOMContentLoaded", function() {
         const isValid = validateForm();
         console.log('表單驗證結果:', isValid);
         console.log('提交按鈕狀態:', submitBtn.disabled);
+        
+        // 驗證 reCAPTCHA
+        const recaptchaResponse = grecaptcha.getResponse();
+        const recaptchaError = document.getElementById('recaptcha-error');
+        
+        if (!recaptchaResponse) {
+            e.preventDefault();
+            recaptchaError.textContent = '請完成 reCAPTCHA 驗證';
+            recaptchaError.style.display = 'block';
+            alert('請完成 reCAPTCHA 驗證');
+            return false;
+        } else {
+            recaptchaError.textContent = '';
+            recaptchaError.style.display = 'none';
+        }
         
         if (!isValid || submitBtn.disabled) {
             e.preventDefault();

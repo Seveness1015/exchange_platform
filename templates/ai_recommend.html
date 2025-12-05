@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block title %}AI 推薦圖書 - 二手書平台{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="page-header">
+        <h2 class="page-title">
+            <i class="fas fa-robot"></i>
+            AI 推薦圖書
+        </h2>
+    </div>
+
+    <!-- 表單 -->
+    <div class="ai-recommend-form-section">
+        <form method="POST" action="/ai_recommend" class="ai-recommend-form">
+            <div class="form-group">
+                <label for="course_name">課程名稱 *</label>
+                <input type="text" id="course_name" name="course_name" 
+                       value="{{ course_name if course_name else '' }}" 
+                       placeholder="例如：離散數學" required>
+            </div>
+
+            <div class="form-group">
+                <label for="department">系所</label>
+                <select class="form-control" id="department" name="department" onchange="updateMajors()">
+                    <option value="">不限</option>
+                    <option value="工程學院" {% if department == '工程學院' %}selected{% endif %}>工程學院</option>
+                    <option value="電資學院" {% if department == '電資學院' %}selected{% endif %}>電資學院</option>
+                    <option value="管理學院" {% if department == '管理學院' %}selected{% endif %}>管理學院</option>
+                    <option value="設計學院" {% if department == '設計學院' %}selected{% endif %}>設計學院</option>
+                    <option value="人文社會學院" {% if department == '人文社會學院' %}selected{% endif %}>人文社會學院</option>
+                    <option value="應用科技學院" {% if department == '應用科技學院' %}selected{% endif %}>應用科技學院</option>
+                    <option value="產學創新學院" {% if department == '產學創新學院' %}selected{% endif %}>產學創新學院</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="major">科系</label>
+                <select class="form-control" id="major" name="major">
+                    <option value="">不限</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="grade">年級</label>
+                <select id="grade" name="grade" class="form-control">
+                    <option value="">不限</option>
+                    <option value="大一" {% if grade == '大一' %}selected{% endif %}>大一</option>
+                    <option value="大二" {% if grade == '大二' %}selected{% endif %}>大二</option>
+                    <option value="大三" {% if grade == '大三' %}selected{% endif %}>大三</option>
+                    <option value="大四" {% if grade == '大四' %}selected{% endif %}>大四</option>
+                    <option value="研究所" {% if grade == '研究所' %}selected{% endif %}>研究所</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="additional_requirements">其他要求（選填）</label>
+                <textarea id="additional_requirements" name="additional_requirements" 
+                          class="form-control" rows="3" 
+                          placeholder="例如：希望推薦適合初學者的書籍、需要包含習題解答的版本等...">{{ additional_requirements if additional_requirements else '' }}</textarea>
+                <small class="form-text text-muted">您可以在此輸入額外的需求或偏好，幫助 AI 提供更精準的推薦</small>
+            </div>
+
+            <button type="submit" class="submit-btn">
+                <i class="fas fa-robot"></i>
+                開始推薦
+            </button>
+        </form>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-error">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- 推薦結果 -->
+    {% if recommendations %}
+    <div class="recommendations-section">
+        <h3 class="section-title">
+            <i class="fas fa-star"></i>
+            {{ course_name }} 推薦書籍
+            <span class="recommendation-count">(找到 {{ recommendations|length }} 本書)</span>
+        </h3>
+
+        {% for rec in recommendations %}
+        <div class="recommendation-card">
+            <div class="recommendation-header">
+                <div class="recommendation-cover">
+                    <img src="{{ rec.front_image }}" alt="{{ rec.book_title }}" 
+                         onerror="this.src='{{ url_for('static', filename='images/book_original.png') }}'">
+                </div>
+                <div class="recommendation-info">
+                    <h4 class="recommendation-title">{{ rec.book_title }}</h4>
+                    {% if rec.author %}
+                    <p class="recommendation-author">作者：{{ rec.author }}</p>
+                    {% endif %}
+                    <div class="recommendation-meta">
+                        <span class="recommendation-rating">
+                            <i class="fas fa-star"></i>
+                            {{ "%.1f"|format(rec.avg_rating) }} ({{ rec.review_count }} 則評價)
+                        </span>
+                        <span class="recommendation-providers">
+                            <i class="fas fa-users"></i>
+                            {{ rec.provider_count }} 人提供
+                        </span>
+                    </div>
+                    <div class="recommendation-necessity">
+                        <span class="necessity-badge necessity-{{ rec.necessity_level }}">
+                            {{ rec.necessity_level }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 人性化推薦理由 -->
+            <div class="recommendation-reason">
+                <div class="recommendation-reason-header">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>推薦理由</span>
+                </div>
+                <div class="recommendation-reason-text">
+                    {{ rec.summary|safe }}
+                </div>
+            </div>
+
+            <!-- 關鍵評價 -->
+            {% if rec.key_reviews %}
+            <div class="recommendation-reviews-preview">
+                <h5>學長姐怎麼說：</h5>
+                {% for review in rec.key_reviews %}
+                <div class="review-preview-item">
+                    <div class="review-preview-rating">
+                        {% for i in range(1, 6) %}
+                            {% if i <= review.rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="review-preview-reviewer">{{ review.reviewer }}</span>
+                    </div>
+                    <p class="review-preview-content">「{{ review.content }}」</p>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- 操作按鈕 -->
+            <div class="recommendation-actions">
+                {% if rec.book_id %}
+                <button class="action-btn-primary" onclick="viewBookDetail('{{ rec.book_id }}')">
+                    <i class="fas fa-book-open"></i>
+                    查看書籍詳情
+                </button>
+                {% else %}
+                <button class="action-btn-primary" onclick="searchBook('{{ rec.book_title }}')">
+                    <i class="fas fa-search"></i>
+                    搜尋這本書
+                </button>
+                {% endif %}
+                {% if rec.provider_count > 0 %}
+                <button class="action-btn-secondary" onclick="viewProviders('{{ rec.book_title }}')">
+                    <i class="fas fa-users"></i>
+                    查看提供者 ({{ rec.provider_count }})
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif course_name %}
+    <div class="no-recommendations">
+        <i class="fas fa-book-open" style="font-size: 48px; color: var(--light-brown); margin-bottom: 15px;"></i>
+        <p>目前沒有找到「{{ course_name }}」的相關書籍評價</p>
+        <p style="color: var(--light-brown); font-size: 14px;">成為第一個為這門課寫評價的人吧！</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// 系所與科系對應資料
+const departmentMajors = {
+    "工程學院": [
+        "自動化及控制研究所",
+        "機械工程系",
+        "材料科學與工程系",
+        "營建工程系",
+        "化學工程系",
+        "工程學士班",
+        "高階科技研發碩士學位學程(EMRD在職專班)",
+        "先進科技全英語學士學位學程",
+        "全球發展工程學士學位學程",
+        "半導體高階經營暨研發碩士在職學位學程 (SEMI-EMRD)"
+    ],
+    "電資學院": [
+        "電子工程系",
+        "電機工程系",
+        "資訊工程系",
+        "光電工程研究所",
+        "電資學士班",
+        "資通科技國際學士學位學程"
+    ],
+    "管理學院": [
+        "管理研究所",
+        "工業管理系",
+        "企業管理系",
+        "財務金融研究所",
+        "資訊管理系",
+        "管理學院MBA",
+        "EMBA碩士在職專班",
+        "科技管理研究所",
+        "管理學士班"
+    ],
+    "設計學院": [
+        "設計系",
+        "建築系"
+    ],
+    "人文社會學院": [
+        "數位學習與教育研究所",
+        "應用外語系",
+        "人文社會學科",
+        "師資培育中心"
+    ],
+    "應用科技學院": [
+        "應用科技研究所",
+        "醫學工程研究所",
+        "專利研究所",
+        "色彩與照明科技研究所",
+        "不分系學士班",
+        "應用科技學士學位學程",
+        "智慧財產權學士學位學程",
+        "色彩影像與照明科技學士學位學程"
+    ],
+    "產學創新學院": [
+        "智慧製造科技研究所",
+        "人工智慧跨域科技研究所",
+        "能源永續科技研究所",
+        "先進半導體科技研究所"
+    ]
+};
+
+// 根據系所更新科系選項
+function updateMajors() {
+    const departmentSelect = document.getElementById('department');
+    const majorSelect = document.getElementById('major');
+    const selectedDepartment = departmentSelect.value;
+    
+    // 清空科系選項
+    majorSelect.innerHTML = '<option value="">不限</option>';
+    
+    // 如果有選擇系所，載入對應的科系
+    if (selectedDepartment && departmentMajors[selectedDepartment]) {
+        const majors = departmentMajors[selectedDepartment];
+        majors.forEach(function(major) {
+            const option = document.createElement('option');
+            option.value = major;
+            option.textContent = major;
+            majorSelect.appendChild(option);
+        });
+    }
+}
+
+// 頁面載入時，如果有預設的系所和科系，初始化科系選項
+document.addEventListener('DOMContentLoaded', function() {
+    const departmentSelect = document.getElementById('department');
+    const majorSelect = document.getElementById('major');
+    
+    // 如果有預設的系所，更新科系選項
+    if (departmentSelect && departmentSelect.value) {
+        updateMajors();
+        // 等待選項更新後再設置預設值
+        setTimeout(function() {
+            {% if major %}
+            const defaultMajor = "{{ major }}";
+            if (defaultMajor && majorSelect) {
+                majorSelect.value = defaultMajor;
+            }
+            {% endif %}
+        }, 100);
+    }
+});
+
+function viewBookDetail(bookId) {
+    window.location.href = '/book/' + bookId;
+}
+
+function searchBook(bookTitle) {
+    window.location.href = '/?q=' + encodeURIComponent(bookTitle);
+}
+
+function viewProviders(bookTitle) {
+    window.location.href = '/?q=' + encodeURIComponent(bookTitle);
+}
+</script>
+{% endblock %}
+
